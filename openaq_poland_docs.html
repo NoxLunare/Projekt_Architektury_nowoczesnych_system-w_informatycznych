@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenAQ Poland — Dokumentacja Bazy Danych</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #f5f3ef;
+  --bg2:       #edeae4;
+  --bg3:       #e4e0d8;
+  --ink:       #1a1814;
+  --ink2:      #4a4640;
+  --ink3:      #8a8480;
+  --rule:      #d4d0c8;
+  --rule2:     #c0bbb0;
+  --red:       #c0392b;
+  --orange:    #d35400;
+  --gold:      #b8860b;
+  --green:     #1a6b3a;
+  --blue:      #1a4a7a;
+  --purple:    #5a3080;
+  --teal:      #1a6b6b;
+
+  --dict-bg:   #eef2f7;
+  --dict-border:#7aa0c8;
+  --loc-bg:    #eef7f0;
+  --loc-border:#7ac87a;
+  --sensor-bg: #f3eef7;
+  --sensor-border:#a07ac8;
+  --meas-bg:   #fdf5e8;
+  --meas-border:#c8a07a;
+  --ops-bg:    #fdeeed;
+  --ops-border:#c87a7a;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ─── LAYOUT ─── */
+.app { display: flex; min-height: 100vh; }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--ink);
+  color: #e0dcd4;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-logo h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0ece4;
+  letter-spacing: .5px;
+}
+.sidebar-logo p {
+  font-size: 10px;
+  color: #6a6460;
+  margin-top: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.sidebar-section {
+  padding: 12px 0 4px;
+}
+.sidebar-section-label {
+  padding: 0 20px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6a6460;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 20px;
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #a0988e;
+  transition: all .15s;
+  border-left: 2px solid transparent;
+}
+.sidebar-item:hover { background: rgba(255,255,255,.05); color: #e0dcd4; }
+.sidebar-item.active { background: rgba(255,255,255,.07); color: #f0ece4; border-left-color: #c8a87a; }
+
+.sidebar-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+.sidebar-stats {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  font-size: 10px;
+  color: #5a5450;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.8;
+}
+
+/* ─── MAIN ─── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ─── TOP BAR ─── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+  padding: 12px 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink2);
+}
+
+.search-box {
+  flex: 1;
+  max-width: 320px;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  padding: 6px 12px 6px 32px;
+  background: var(--bg2);
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  outline: none;
+}
+.search-box input:focus { border-color: var(--blue); background: white; }
+.search-box::before {
+  content: '⌕';
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink3);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.view-btns { display: flex; gap: 4px; margin-left: auto; }
+.view-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: transparent;
+  border: 1px solid var(--rule2);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--ink2);
+  transition: all .15s;
+}
+.view-btn:hover { background: var(--bg2); }
+.view-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+/* ─── CONTENT ─── */
+.content { padding: 40px; }
+
+/* ─── RELATIONSHIP MAP ─── */
+.rel-section {
+  margin-bottom: 48px;
+}
+.section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ─── TABLE GROUP ─── */
+.group-block {
+  margin-bottom: 48px;
+}
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid var(--rule);
+  border-bottom: none;
+}
+.group-icon { font-size: 18px; }
+.group-name {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+.group-desc { font-size: 12px; color: var(--ink2); }
+.group-count {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ─── TABLE CARD ─── */
+.table-card {
+  border: 1px solid var(--rule);
+  border-radius: 0 0 6px 6px;
+  background: white;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.table-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+
+.table-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+
+.table-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.table-row-count {
+  font-size: 10px;
+  color: var(--ink3);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.table-api-badge {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--bg3);
+  color: var(--ink3);
+  border: 1px solid var(--rule2);
+}
+.table-desc {
+  padding: 8px 20px 10px;
+  font-size: 12px;
+  color: var(--ink2);
+  background: var(--bg2);
+  border-bottom: 2px solid var(--rule);
+  font-style: italic;
+}
+.table-toggle {
+  font-size: 10px;
+  color: var(--ink3);
+  padding: 0 6px;
+  margin-left: 8px;
+}
+
+/* ─── COLUMNS TABLE ─── */
+.cols-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cols-table th {
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.cols-table td {
+  padding: 9px 16px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+}
+.cols-table tr:last-child td { border-bottom: none; }
+.cols-table tr:hover td { background: #faf9f6; }
+.cols-table tr.row-pk td { background: #fffbf0; }
+.cols-table tr.row-pk:hover td { background: #fff7e0; }
+.cols-table tr.row-fk td { background: #f0f7f0; }
+.cols-table tr.row-fk:hover td { background: #e4f0e4; }
+
+.col-name-cell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.pk-badge {
+  font-size: 8px; font-weight: 700; letter-spacing: .5px;
+  padding: 1px 4px; border-radius: 2px;
+  background: #f0a500; color: white;
+}
+.fk-badge {
+  font-size: 8px; font-weight: 700; letter-spacing: .5px;
+  padding: 1px 4px; border-radius: 2px;
+  background: #2a8a4a; color: white;
+}
+
+.type-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.null-chip {
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ink3);
+}
+.col-desc { color: var(--ink2); line-height: 1.5; }
+.col-example {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--green);
+  background: #f0f7f0;
+  border: 1px solid #c8e0c8;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: inline-block;
+  line-height: 1.8;
+}
+.col-example-list { display: flex; flex-direction: column; gap: 2px; }
+.fk-link {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--blue);
+  background: #e8f0f8;
+  border: 1px solid #b0c8e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  display: inline-block;
+  transition: background .15s;
+}
+.fk-link:hover { background: #d0e4f4; }
+
+/* ─── RELATIONSHIP VIEW ─── */
+.rel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+.rel-card {
+  background: white;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 16px;
+}
+.rel-card-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.rel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.rel-row:last-child { border-bottom: none; }
+.rel-from { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink); font-weight: 500; }
+.rel-arrow { color: var(--ink3); font-size: 11px; flex-shrink: 0; }
+.rel-to { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--blue); }
+.rel-type { font-size: 9px; color: var(--ink3); margin-left: auto; background: var(--bg2); padding: 1px 5px; border-radius: 2px; border: 1px solid var(--rule2); }
+.rel-desc { font-size: 11px; color: var(--ink2); width: 100%; margin-top: 2px; padding-left: 4px; }
+
+/* ─── HIDDEN ─── */
+.table-body.collapsed { display: none; }
+
+/* ─── SEARCH HIGHLIGHT ─── */
+.highlight { background: #fff3c0; border-radius: 2px; }
+
+/* ─── SCROLLBAR ─── */
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #3a3630; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>OpenAQ Poland DB</h1>
+    <p>SQL Server · T-SQL · iso=PL</p>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Nawigacja</div>
+    <div class="sidebar-item" onclick="showView('tables')" id="nav-tables">
+      <div class="sidebar-dot" style="background:#c8a87a"></div> Tabele & Kolumny
+    </div>
+    <div class="sidebar-item active" onclick="showView('relations')" id="nav-relations">
+      <div class="sidebar-dot" style="background:#7ac8a8"></div> Relacje
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">📚 Słowniki</div>
+    <div class="sidebar-item" onclick="jumpTo('parameters')"><div class="sidebar-dot" style="background:#7aa0c8"></div> parameters</div>
+    <div class="sidebar-item" onclick="jumpTo('licenses')"><div class="sidebar-dot" style="background:#7aa0c8"></div> licenses</div>
+    <div class="sidebar-item" onclick="jumpTo('providers')"><div class="sidebar-dot" style="background:#7aa0c8"></div> providers</div>
+    <div class="sidebar-item" onclick="jumpTo('owners')"><div class="sidebar-dot" style="background:#7aa0c8"></div> owners</div>
+    <div class="sidebar-item" onclick="jumpTo('manufacturers')"><div class="sidebar-dot" style="background:#7aa0c8"></div> manufacturers</div>
+    <div class="sidebar-item" onclick="jumpTo('instruments')"><div class="sidebar-dot" style="background:#7aa0c8"></div> instruments</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">📍 Lokalizacje</div>
+    <div class="sidebar-item" onclick="jumpTo('locations')"><div class="sidebar-dot" style="background:#7ac87a"></div> locations</div>
+    <div class="sidebar-item" onclick="jumpTo('location_instruments')"><div class="sidebar-dot" style="background:#7ac87a"></div> location_instruments</div>
+    <div class="sidebar-item" onclick="jumpTo('location_licenses')"><div class="sidebar-dot" style="background:#7ac87a"></div> location_licenses</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">🔬 Sensory</div>
+    <div class="sidebar-item" onclick="jumpTo('sensors')"><div class="sidebar-dot" style="background:#a07ac8"></div> sensors</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">📊 Pomiary</div>
+    <div class="sidebar-item" onclick="jumpTo('measurements')"><div class="sidebar-dot" style="background:#c8a07a"></div> measurements</div>
+    <div class="sidebar-item" onclick="jumpTo('hourly_aggregates')"><div class="sidebar-dot" style="background:#c8a07a"></div> hourly_aggregates</div>
+    <div class="sidebar-item" onclick="jumpTo('daily_aggregates')"><div class="sidebar-dot" style="background:#c8a07a"></div> daily_aggregates</div>
+    <div class="sidebar-item" onclick="jumpTo('monthly_aggregates')"><div class="sidebar-dot" style="background:#c8a07a"></div> monthly_aggregates</div>
+    <div class="sidebar-item" onclick="jumpTo('yearly_aggregates')"><div class="sidebar-dot" style="background:#c8a07a"></div> yearly_aggregates</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">⚙️ Operacyjne</div>
+    <div class="sidebar-item" onclick="jumpTo('sensor_flags')"><div class="sidebar-dot" style="background:#c87a7a"></div> sensor_flags</div>
+    <div class="sidebar-item" onclick="jumpTo('location_latest')"><div class="sidebar-dot" style="background:#c87a7a"></div> location_latest</div>
+  </div>
+
+  <div class="sidebar-stats">
+    17 tabel · 4 agregaty<br>
+    partycje 2016–2026<br>
+    api.openaq.org/v3
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title">Dokumentacja schematu bazy danych</span>
+    <div class="search-box">
+      <input type="text" placeholder="Szukaj kolumny, tabeli…" id="search-input" oninput="doSearch(this.value)">
+    </div>
+    <div class="view-btns">
+      <button class="view-btn" id="btn-tables" onclick="showView('tables')">Tabele</button>
+      <button class="view-btn active" id="btn-relations" onclick="showView('relations')">Relacje</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══════════════════════════════════
+         VIEW: RELATIONS
+    ══════════════════════════════════ -->
+    <div id="view-relations">
+
+      <div class="rel-section">
+        <div class="section-title">🔗 Mapa relacji między tabelami</div>
+        <div class="rel-grid">
+
+          <div class="rel-card">
+            <div class="rel-card-title">providers → licenses</div>
+            <div class="rel-row">
+              <span class="rel-from">providers.license_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">licenses.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Każdy dostawca danych (np. GIOŚ) działa na podstawie jednej licencji.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">instruments → manufacturers</div>
+            <div class="rel-row">
+              <span class="rel-from">instruments.manufacturer_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">manufacturers.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Każdy model urządzenia należy do jednego producenta.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">locations → owners / providers</div>
+            <div class="rel-row">
+              <span class="rel-from">locations.owner_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">owners.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">locations.provider_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">providers.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Stacja ma właściciela (kto posiada) i dostawcę (kto agreguje dane do OpenAQ).</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">location_instruments (M:N)</div>
+            <div class="rel-row">
+              <span class="rel-from">location_instruments.location_id</span>
+              <span class="rel-arrow">──▶</span>
+              <span class="rel-to">locations.id</span>
+              <span class="rel-type">M:N</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">location_instruments.instrument_id</span>
+              <span class="rel-arrow">──▶</span>
+              <span class="rel-to">instruments.id</span>
+              <span class="rel-type">M:N</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Jedna stacja może mieć wiele urządzeń. Jedno urządzenie może być w wielu stacjach.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">location_licenses (M:N z datami)</div>
+            <div class="rel-row">
+              <span class="rel-from">location_licenses.location_id</span>
+              <span class="rel-arrow">──▶</span>
+              <span class="rel-to">locations.id</span>
+              <span class="rel-type">M:N</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">location_licenses.license_id</span>
+              <span class="rel-arrow">──▶</span>
+              <span class="rel-to">licenses.id</span>
+              <span class="rel-type">M:N</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Licencja stacji może się zmieniać w czasie — stąd date_from/date_to w tej tabeli łączącej.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">sensors → locations / parameters</div>
+            <div class="rel-row">
+              <span class="rel-from">sensors.location_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">locations.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">sensors.parameter_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">parameters.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Jeden sensor mierzy jeden parametr (np. PM2.5) w jednej lokalizacji. Jedna stacja może mieć wiele sensorów.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">measurements → sensors</div>
+            <div class="rel-row">
+              <span class="rel-from">measurements.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Każdy surowy pomiar należy do konkretnego sensora. Tabela partycjonowana rocznie (2016–2026).</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">*_aggregates → sensors</div>
+            <div class="rel-row">
+              <span class="rel-from">hourly_aggregates.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">daily_aggregates.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">monthly_aggregates.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">yearly_aggregates.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Wszystkie 4 poziomy agregacji wskazują na sensora. Każdy agregat ma UNIQUE na (sensor_id, okres).</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">sensor_flags → sensors</div>
+            <div class="rel-row">
+              <span class="rel-from">sensor_flags.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Flagi złej jakości danych (np. awaria sensora, wartości podejrzane) powiązane z sensorem i przedziałem czasu.</span></div>
+          </div>
+
+          <div class="rel-card">
+            <div class="rel-card-title">location_latest → locations / sensors / parameters</div>
+            <div class="rel-row">
+              <span class="rel-from">location_latest.location_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">locations.id</span>
+              <span class="rel-type">1:1</span>
+            </div>
+            <div class="rel-row">
+              <span class="rel-from">location_latest.sensor_id</span>
+              <span class="rel-arrow">──FK──▶</span>
+              <span class="rel-to">sensors.id</span>
+              <span class="rel-type">N:1</span>
+            </div>
+            <div class="rel-row"><span class="rel-desc">Cache — jeden wiersz na lokalizację, przechowuje ostatni odczyt. Unika przeszukiwania measurements.</span></div>
+          </div>
+
+        </div><!-- rel-grid -->
+      </div>
+
+      <!-- FULL DIAGRAM -->
+      <div class="rel-section" style="margin-top:32px">
+        <div class="section-title">📐 Diagram hierarchii tabel</div>
+        <div style="background:white;border:1px solid var(--rule);border-radius:6px;padding:28px;overflow-x:auto;">
+          <svg width="900" height="540" viewBox="0 0 900 540" font-family="IBM Plex Mono, monospace" font-size="11">
+            <defs>
+              <marker id="fk" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6z" fill="#4a8a6a"/>
+              </marker>
+              <marker id="fk2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6z" fill="#7aa0c8"/>
+              </marker>
+              <marker id="fk3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6z" fill="#a07ac8"/>
+              </marker>
+              <marker id="fk4" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6z" fill="#c8a07a"/>
+              </marker>
+            </defs>
+
+            <!-- GROUPS -->
+            <!-- Dict box -->
+            <rect x="8" y="8" width="190" height="340" rx="6" fill="#eef2f7" stroke="#7aa0c8" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="16" y="24" fill="#7aa0c8" font-size="9" font-weight="600" letter-spacing="1">SŁOWNIKI</text>
+
+            <!-- Loc box -->
+            <rect x="218" y="8" width="195" height="220" rx="6" fill="#eef7f0" stroke="#7ac87a" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="226" y="24" fill="#4a9a5a" font-size="9" font-weight="600" letter-spacing="1">LOKALIZACJE</text>
+
+            <!-- Sensor box -->
+            <rect x="433" y="8" width="180" height="100" rx="6" fill="#f3eef7" stroke="#a07ac8" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="441" y="24" fill="#805aa0" font-size="9" font-weight="600" letter-spacing="1">SENSORY</text>
+
+            <!-- Meas box -->
+            <rect x="218" y="248" width="395" height="280" rx="6" fill="#fdf5e8" stroke="#c8a07a" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="226" y="264" fill="#a07020" font-size="9" font-weight="600" letter-spacing="1">POMIARY &amp; AGREGATY</text>
+
+            <!-- Ops box -->
+            <rect x="633" y="8" width="255" height="520" rx="6" fill="#fdeeed" stroke="#c87a7a" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="641" y="24" fill="#a04a4a" font-size="9" font-weight="600" letter-spacing="1">OPERACYJNE</text>
+
+            <!-- ── NODES ── -->
+            <!-- parameters -->
+            <rect x="18" y="30" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="50" fill="#1a3a6a" font-weight="600">parameters</text>
+            <text x="152" y="50" fill="#7aa0c8" font-size="9">pm25,no2…</text>
+
+            <!-- licenses -->
+            <rect x="18" y="78" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="98" fill="#1a3a6a" font-weight="600">licenses</text>
+
+            <!-- providers -->
+            <rect x="18" y="126" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="146" fill="#1a3a6a" font-weight="600">providers</text>
+
+            <!-- owners -->
+            <rect x="18" y="174" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="194" fill="#1a3a6a" font-weight="600">owners</text>
+
+            <!-- manufacturers -->
+            <rect x="18" y="222" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="242" fill="#1a3a6a" font-weight="600">manufacturers</text>
+
+            <!-- instruments -->
+            <rect x="18" y="270" width="170" height="34" rx="4" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="28" y="290" fill="#1a3a6a" font-weight="600">instruments</text>
+
+            <!-- locations -->
+            <rect x="228" y="30" width="175" height="34" rx="4" fill="#c8e8c8" stroke="#4a9a5a" stroke-width="1.5"/>
+            <text x="238" y="50" fill="#1a4a2a" font-weight="700">locations ★</text>
+
+            <!-- loc_instruments -->
+            <rect x="228" y="78" width="175" height="34" rx="4" fill="#dce8dc" stroke="#7ac87a"/>
+            <text x="238" y="98" fill="#1a4a2a" font-size="10">loc_instruments</text>
+
+            <!-- loc_licenses -->
+            <rect x="228" y="126" width="175" height="34" rx="4" fill="#dce8dc" stroke="#7ac87a"/>
+            <text x="238" y="146" fill="#1a4a2a" font-size="10">loc_licenses</text>
+
+            <!-- sensors -->
+            <rect x="443" y="30" width="160" height="34" rx="4" fill="#dcd0f0" stroke="#a07ac8" stroke-width="1.5"/>
+            <text x="453" y="50" fill="#3a1a6a" font-weight="700">sensors ★</text>
+
+            <!-- measurements -->
+            <rect x="228" y="276" width="175" height="40" rx="4" fill="#f5e0c0" stroke="#c8a07a" stroke-width="1.5"/>
+            <text x="238" y="292" fill="#5a3000" font-weight="600">measurements</text>
+            <text x="238" y="307" fill="#9a7040" font-size="9">PARTITION 2016-2026</text>
+
+            <!-- hourly -->
+            <rect x="228" y="334" width="175" height="34" rx="4" fill="#f0d8b0" stroke="#c8a07a"/>
+            <text x="238" y="354" fill="#5a3000" font-size="10">hourly_aggregates</text>
+
+            <!-- daily -->
+            <rect x="228" y="382" width="175" height="34" rx="4" fill="#f0d8b0" stroke="#c8a07a"/>
+            <text x="238" y="402" fill="#5a3000" font-size="10">daily_aggregates</text>
+
+            <!-- monthly -->
+            <rect x="420" y="334" width="175" height="34" rx="4" fill="#f0d8b0" stroke="#c8a07a"/>
+            <text x="430" y="354" fill="#5a3000" font-size="10">monthly_aggregates</text>
+
+            <!-- yearly -->
+            <rect x="420" y="382" width="175" height="34" rx="4" fill="#f0d8b0" stroke="#c8a07a"/>
+            <text x="430" y="402" fill="#5a3000" font-size="10">yearly_aggregates</text>
+
+            <!-- sensor_flags -->
+            <rect x="643" y="30" width="168" height="34" rx="4" fill="#f0c8c8" stroke="#c87a7a"/>
+            <text x="653" y="50" fill="#5a1a1a" font-size="10">sensor_flags</text>
+
+            <!-- location_latest -->
+            <rect x="643" y="80" width="168" height="40" rx="4" fill="#f0c8c8" stroke="#c87a7a"/>
+            <text x="653" y="96" fill="#5a1a1a" font-size="10">location_latest</text>
+            <text x="653" y="112" fill="#a05050" font-size="9">cache ostatniego odczytu</text>
+
+            <!-- ── ARROWS ── -->
+            <!-- providers → licenses -->
+            <line x1="103" y1="126" x2="103" y2="112" stroke="#7aa0c8" stroke-width="1.2" marker-end="url(#fk2)"/>
+
+            <!-- instruments → manufacturers -->
+            <line x1="103" y1="270" x2="103" y2="256" stroke="#7aa0c8" stroke-width="1.2" marker-end="url(#fk2)"/>
+
+            <!-- locations → owners -->
+            <path d="M228,55 C200,55 200,191 188,191" stroke="#4a9a5a" stroke-width="1.2" fill="none" marker-end="url(#fk)"/>
+
+            <!-- locations → providers -->
+            <path d="M228,58 C210,58 210,143 188,143" stroke="#4a9a5a" stroke-width="1.2" fill="none" marker-end="url(#fk)"/>
+
+            <!-- loc_instruments → locations -->
+            <line x1="315" y1="78" x2="315" y2="64" stroke="#4a9a5a" stroke-width="1.2" marker-end="url(#fk)"/>
+
+            <!-- loc_instruments → instruments -->
+            <path d="M228,95 C210,95 210,287 188,287" stroke="#4a9a5a" stroke-width="1.2" fill="none" marker-end="url(#fk)"/>
+
+            <!-- loc_licenses → locations -->
+            <line x1="285" y1="126" x2="285" y2="64" stroke="#4a9a5a" stroke-width="1.2" marker-end="url(#fk)"/>
+
+            <!-- loc_licenses → licenses -->
+            <path d="M228,143 C210,143 210,95 188,95" stroke="#4a9a5a" stroke-width="1.2" fill="none" marker-end="url(#fk)"/>
+
+            <!-- sensors → locations -->
+            <line x1="443" y1="47" x2="403" y2="47" stroke="#a07ac8" stroke-width="1.5" marker-end="url(#fk3)"/>
+
+            <!-- sensors → parameters -->
+            <path d="M443,52 C420,52 420,360 200,360 C120,360 100,180 100,350 L100,47 L188,47" stroke="#a07ac8" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".5" marker-end="url(#fk3)"/>
+
+            <!-- measurements → sensors -->
+            <path d="M403,291 C430,291 430,90 443,47" stroke="#c8a07a" stroke-width="1.5" fill="none" marker-end="url(#fk4)"/>
+
+            <!-- hourly → sensors -->
+            <path d="M403,351 C440,351 460,200 523,64" stroke="#c8a07a" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".6" marker-end="url(#fk4)"/>
+
+            <!-- daily → sensors -->
+            <path d="M403,399 C445,399 465,200 523,64" stroke="#c8a07a" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".6" marker-end="url(#fk4)"/>
+
+            <!-- monthly → sensors -->
+            <path d="M507,351 C520,351 530,180 523,64" stroke="#c8a07a" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".5" marker-end="url(#fk4)"/>
+
+            <!-- yearly → sensors -->
+            <path d="M507,399 C525,399 535,180 523,64" stroke="#c8a07a" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".5" marker-end="url(#fk4)"/>
+
+            <!-- sensor_flags → sensors -->
+            <path d="M643,47 C620,47 610,47 603,47" stroke="#c87a7a" stroke-width="1.2" fill="none" marker-end="url(#fk)"/>
+
+            <!-- location_latest → locations -->
+            <path d="M643,90 C600,90 600,47 403,47" stroke="#c87a7a" stroke-width="1.2" fill="none" stroke-dasharray="3,2" opacity=".6" marker-end="url(#fk)"/>
+
+            <!-- location_latest → sensors -->
+            <path d="M643,100 C628,100 615,60 603,47" stroke="#c87a7a" stroke-width="1" fill="none" stroke-dasharray="3,2" opacity=".5" marker-end="url(#fk)"/>
+
+            <!-- LEGEND -->
+            <rect x="18" y="464" width="580" height="68" rx="4" fill="white" stroke="#d4d0c8"/>
+            <text x="28" y="480" fill="#6a6460" font-size="9" font-weight="600" letter-spacing="1">LEGENDA</text>
+            <line x1="28" y1="492" x2="65" y2="492" stroke="#4a8a6a" stroke-width="1.5" marker-end="url(#fk)"/>
+            <text x="72" y="495" fill="#4a6050" font-size="9">Relacja FK (klucz obcy)</text>
+            <line x1="28" y1="512" x2="65" y2="512" stroke="#4a8a6a" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#fk)"/>
+            <text x="72" y="515" fill="#4a6050" font-size="9">Relacja FK (pomocnicza / cache)</text>
+            <rect x="200" y="484" width="12" height="12" rx="2" fill="#c8e8c8" stroke="#4a9a5a"/>
+            <text x="218" y="494" fill="#4a6050" font-size="9">★ Tabela centralna</text>
+            <rect x="200" y="504" width="12" height="12" rx="2" fill="#f5e0c0" stroke="#c8a07a"/>
+            <text x="218" y="514" fill="#4a6050" font-size="9">Pomiary / Agregaty (PARTITION)</text>
+            <rect x="370" y="484" width="12" height="12" rx="2" fill="#dce8f5" stroke="#7aa0c8"/>
+            <text x="388" y="494" fill="#4a6050" font-size="9">Słowniki (rzadko zmieniane)</text>
+            <rect x="370" y="504" width="12" height="12" rx="2" fill="#f0c8c8" stroke="#c87a7a"/>
+            <text x="388" y="514" fill="#4a6050" font-size="9">Operacyjne (flagi, cache)</text>
+          </svg>
+        </div>
+      </div>
+    </div><!-- view-relations -->
+
+    <!-- ══════════════════════════════════
+         VIEW: TABLES
+    ══════════════════════════════════ -->
+    <div id="view-tables" style="display:none">
+
+      <!-- ── SŁOWNIKI ── -->
+      <div class="group-block" id="group-dict">
+        <div class="group-header" style="background:#eef2f7;border-color:#7aa0c8">
+          <span class="group-icon">📚</span>
+          <div>
+            <div class="group-name" style="color:#1a3a6a">Słowniki</div>
+            <div class="group-desc">Dane referencyjne pobierane raz — rzadko aktualizowane</div>
+          </div>
+          <span class="group-count" style="background:#dce8f5;color:#1a3a6a">6 tabel</span>
+        </div>
+
+        <!-- parameters -->
+        <div class="table-card" id="parameters">
+          <div class="table-header" onclick="toggleTable('parameters-body')">
+            <span class="table-name">parameters</span>
+            <span class="table-row-count">~15 wierszy</span>
+            <span class="table-api-badge">/v3/parameters</span>
+            <span class="table-toggle" id="toggle-parameters-body">▼</span>
+          </div>
+          <div class="table-desc">Mierzone parametry fizyczne — lista tego co OpenAQ zbiera (PM2.5, NO₂, O₃ itd.)</div>
+          <div class="table-body" id="parameters-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Unikalny identyfikator parametru nadawany przez OpenAQ</td><td><div class="col-example-list"><span class="col-example">2</span><span class="col-example">6</span><span class="col-example">19</span></div></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(50)</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Nazwa techniczna parametru — używana jako klucz w zapytaniach API</td><td><div class="col-example-list"><span class="col-example">pm25</span><span class="col-example">no2</span><span class="col-example">o3</span><span class="col-example">co</span><span class="col-example">so2</span><span class="col-example">bc</span></div></td></tr>
+                <tr><td><div class="col-name-cell">display_name</div></td><td><span class="type-chip">VARCHAR(100)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Czytelna nazwa do wyświetlenia w interfejsie</td><td><div class="col-example-list"><span class="col-example">PM 2.5</span><span class="col-example">NO₂</span><span class="col-example">Ozone</span></div></td></tr>
+                <tr><td><div class="col-name-cell">description</div></td><td><span class="type-chip">NVARCHAR(MAX)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Opis co to za substancja i dlaczego jest mierzona</td><td><span class="col-example">Fine particulate matter…</span></td></tr>
+                <tr><td><div class="col-name-cell">units</div></td><td><span class="type-chip">VARCHAR(20)</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Jednostka fizyczna w której wyrażone są pomiary tego parametru</td><td><div class="col-example-list"><span class="col-example">µg/m³</span><span class="col-example">ppb</span><span class="col-example">ppm</span><span class="col-example">%</span><span class="col-example">c</span></div></td></tr>
+                <tr><td><div class="col-name-cell">is_core</div></td><td><span class="type-chip">BIT</span> <span class="null-chip">DEFAULT 0</span></td><td class="col-desc">Czy to "kryterialny" zanieczyszcznik (WHO / EPA) — 1 = tak (PM2.5, NO₂, O₃…)</td><td><div class="col-example-list"><span class="col-example">1</span><span class="col-example">0</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- licenses -->
+        <div class="table-card" id="licenses">
+          <div class="table-header" onclick="toggleTable('licenses-body')">
+            <span class="table-name">licenses</span>
+            <span class="table-row-count">~10 wierszy</span>
+            <span class="table-api-badge">/v3/licenses</span>
+            <span class="table-toggle" id="toggle-licenses-body">▼</span>
+          </div>
+          <div class="table-desc">Licencje prawne na dane — określają warunki użycia, atrybucję i okres obowiązywania</div>
+          <div class="table-body" id="licenses-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Identyfikator licencji</td><td><span class="col-example">1</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(200)</span></td><td class="col-desc">Pełna nazwa licencji</td><td><div class="col-example-list"><span class="col-example">CC BY 4.0</span><span class="col-example">Open Government Licence</span></div></td></tr>
+                <tr><td><div class="col-name-cell">attribution_name</div></td><td><span class="type-chip">VARCHAR(200)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Nazwa podmiotu do podania w atrybucji</td><td><span class="col-example">GIOŚ</span></td></tr>
+                <tr><td><div class="col-name-cell">attribution_url</div></td><td><span class="type-chip">NVARCHAR(MAX)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Link do strony z warunkami licencji</td><td><span class="col-example">https://powietrze.gios.gov.pl</span></td></tr>
+                <tr><td><div class="col-name-cell">date_from</div></td><td><span class="type-chip">DATE</span> <span class="null-chip">NULL</span></td><td class="col-desc">Od kiedy licencja obowiązuje</td><td><span class="col-example">2016-01-01</span></td></tr>
+                <tr><td><div class="col-name-cell">date_to</div></td><td><span class="type-chip">DATE</span> <span class="null-chip">NULL</span></td><td class="col-desc">Do kiedy licencja obowiązuje — NULL = bezterminowo</td><td><span class="col-example">NULL</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- providers -->
+        <div class="table-card" id="providers">
+          <div class="table-header" onclick="toggleTable('providers-body')">
+            <span class="table-name">providers</span>
+            <span class="table-row-count">~5 wierszy dla PL</span>
+            <span class="table-api-badge">/v3/providers</span>
+            <span class="table-toggle" id="toggle-providers-body">▼</span>
+          </div>
+          <div class="table-desc">Dostawcy danych — organizacje, które zbierają dane i udostępniają je do OpenAQ</div>
+          <div class="table-body" id="providers-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Identyfikator dostawcy</td><td><span class="col-example">119</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(200)</span></td><td class="col-desc">Nazwa dostawcy wyświetlana publicznie</td><td><div class="col-example-list"><span class="col-example">GIOŚ</span><span class="col-example">AirNow</span><span class="col-example">Airly</span></div></td></tr>
+                <tr><td><div class="col-name-cell">source_name</div></td><td><span class="type-chip">VARCHAR(200)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Wewnętrzna nazwa źródła w systemie OpenAQ (używana w ETL)</td><td><span class="col-example">PL_GIOS</span></td></tr>
+                <tr><td><div class="col-name-cell">export_prefix</div></td><td><span class="type-chip">VARCHAR(50)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Prefix używany przy eksporcie danych do S3/AWS</td><td><span class="col-example">pl_gios</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>license_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Licencja na dane od tego dostawcy → <span class="fk-link" onclick="jumpTo('licenses')">licenses.id</span></td><td><span class="col-example">1</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- owners -->
+        <div class="table-card" id="owners">
+          <div class="table-header" onclick="toggleTable('owners-body')">
+            <span class="table-name">owners</span>
+            <span class="table-row-count">~20 wierszy dla PL</span>
+            <span class="table-api-badge">/v3/owners</span>
+            <span class="table-toggle" id="toggle-owners-body">▼</span>
+          </div>
+          <div class="table-desc">Właściciele stacji pomiarowych — kto fizycznie eksploatuje urządzenie</div>
+          <div class="table-body" id="owners-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Identyfikator właściciela</td><td><span class="col-example">42</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(300)</span></td><td class="col-desc">Pełna nazwa instytucji będącej właścicielem stacji</td><td><div class="col-example-list"><span class="col-example">Główny Inspektorat Ochrony Środowiska</span><span class="col-example">Urząd Miasta Krakowa</span><span class="col-example">AGH Kraków</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- manufacturers -->
+        <div class="table-card" id="manufacturers">
+          <div class="table-header" onclick="toggleTable('manufacturers-body')">
+            <span class="table-name">manufacturers</span>
+            <span class="table-row-count">~30 wierszy</span>
+            <span class="table-api-badge">/v3/manufacturers</span>
+            <span class="table-toggle" id="toggle-manufacturers-body">▼</span>
+          </div>
+          <div class="table-desc">Producenci urządzeń pomiarowych stosowanych na stacjach</div>
+          <div class="table-body" id="manufacturers-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Identyfikator producenta</td><td><span class="col-example">15</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(200)</span></td><td class="col-desc">Nazwa firmy produkującej analizatory powietrza</td><td><div class="col-example-list"><span class="col-example">Thermo Fisher Scientific</span><span class="col-example">Teledyne API</span><span class="col-example">Airly</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- instruments -->
+        <div class="table-card" id="instruments">
+          <div class="table-header" onclick="toggleTable('instruments-body')">
+            <span class="table-name">instruments</span>
+            <span class="table-row-count">~50 wierszy</span>
+            <span class="table-api-badge">/v3/instruments</span>
+            <span class="table-toggle" id="toggle-instruments-body">▼</span>
+          </div>
+          <div class="table-desc">Konkretne modele urządzeń/analizatorów zainstalowanych na stacjach</div>
+          <div class="table-body" id="instruments-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Identyfikator modelu urządzenia</td><td><span class="col-example">77</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(200)</span></td><td class="col-desc">Model/nazwa handlowa urządzenia pomiarowego</td><td><div class="col-example-list"><span class="col-example">Thermo 5030i SHARP</span><span class="col-example">Teledyne T400</span><span class="col-example">Airly Sensor</span></div></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>manufacturer_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Producent tego modelu urządzenia → <span class="fk-link" onclick="jumpTo('manufacturers')">manufacturers.id</span></td><td><span class="col-example">15</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- group-dict -->
+
+      <!-- ── LOKALIZACJE ── -->
+      <div class="group-block" id="group-loc">
+        <div class="group-header" style="background:#eef7f0;border-color:#7ac87a">
+          <span class="group-icon">📍</span>
+          <div>
+            <div class="group-name" style="color:#1a4a2a">Lokalizacje</div>
+            <div class="group-desc">Stacje pomiarowe w Polsce — filtrowane przez iso=PL</div>
+          </div>
+          <span class="group-count" style="background:#c8e8c8;color:#1a4a2a">3 tabele</span>
+        </div>
+
+        <!-- locations -->
+        <div class="table-card" id="locations">
+          <div class="table-header" onclick="toggleTable('locations-body')">
+            <span class="table-name">locations ★</span>
+            <span class="table-row-count">~300–500 wierszy</span>
+            <span class="table-api-badge">/v3/locations?iso=PL</span>
+            <span class="table-toggle" id="toggle-locations-body">▼</span>
+          </div>
+          <div class="table-desc">Centralna tabela — każda stacja pomiarowa w Polsce. Zawiera pozycję GPS, typ stacji i daty aktywności.</div>
+          <div class="table-body" id="locations-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Unikalny ID stacji nadawany przez OpenAQ</td><td><div class="col-example-list"><span class="col-example">8077</span><span class="col-example">772533</span></div></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">NVARCHAR(300)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Nazwa stacji — zazwyczaj miasto + ulica lub punkt charakterystyczny</td><td><div class="col-example-list"><span class="col-example">Kraków, Al. Krasińskiego</span><span class="col-example">Warszawa, Ursynów</span></div></td></tr>
+                <tr><td><div class="col-name-cell">locality</div></td><td><span class="type-chip">NVARCHAR(200)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Miasto lub dzielnica gdzie znajduje się stacja</td><td><div class="col-example-list"><span class="col-example">Kraków</span><span class="col-example">Warszawa</span><span class="col-example">Wrocław</span></div></td></tr>
+                <tr><td><div class="col-name-cell">timezone</div></td><td><span class="type-chip">VARCHAR(60)</span> <span class="null-chip">DEFAULT 'Europe/Warsaw'</span></td><td class="col-desc">Strefa czasowa stacji — dla Polski zawsze Europe/Warsaw</td><td><span class="col-example">Europe/Warsaw</span></td></tr>
+                <tr><td><div class="col-name-cell">country_code</div></td><td><span class="type-chip">CHAR(2)</span> <span class="null-chip">DEFAULT 'PL'</span></td><td class="col-desc">Kod kraju ISO 3166-1 — w tej bazie zawsze PL (zahardcodowane)</td><td><span class="col-example">PL</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>owner_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Właściciel stacji (kto ją obsługuje) → <span class="fk-link" onclick="jumpTo('owners')">owners.id</span></td><td><span class="col-example">42</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>provider_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Dostawca danych do OpenAQ → <span class="fk-link" onclick="jumpTo('providers')">providers.id</span></td><td><span class="col-example">119</span></td></tr>
+                <tr><td><div class="col-name-cell">is_mobile</div></td><td><span class="type-chip">BIT</span> <span class="null-chip">DEFAULT 0</span></td><td class="col-desc">Czy stacja jest mobilna (np. na samochodzie lub dronie) — 1 = tak</td><td><div class="col-example-list"><span class="col-example">0</span><span class="col-example">1</span></div></td></tr>
+                <tr><td><div class="col-name-cell">is_monitor</div></td><td><span class="type-chip">BIT</span> <span class="null-hint">DEFAULT 0</span></td><td class="col-desc">Czy to certyfikowana stacja referencyjna (GIOŚ) — 1 = tak, 0 = sensor niskokosztowy</td><td><div class="col-example-list"><span class="col-example">1</span><span class="col-example">0</span></div></td></tr>
+                <tr><td><div class="col-name-cell">coordinates</div></td><td><span class="type-chip">GEOGRAPHY</span> <span class="null-chip">NULL</span></td><td class="col-desc">Pozycja GPS jako typ przestrzenny SQL Server — umożliwia zapytania GIS (np. znajdź stacje w promieniu X km)</td><td><span class="col-example">GEOGRAPHY::Point(50.0647, 19.9450, 4326)</span></td></tr>
+                <tr><td><div class="col-name-cell">latitude</div></td><td><span class="type-chip">FLOAT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Szerokość geograficzna — zduplikowana dla łatwych zapytań bez GIS</td><td><span class="col-example">50.0647</span></td></tr>
+                <tr><td><div class="col-name-cell">longitude</div></td><td><span class="type-chip">FLOAT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Długość geograficzna</td><td><span class="col-example">19.9450</span></td></tr>
+                <tr><td><div class="col-name-cell">bound_min/max_lat/lon</div></td><td><span class="type-chip">FLOAT ×4</span> <span class="null-chip">NULL</span></td><td class="col-desc">Bounding box stacji — 4 kolumny zamiast tablicy (SQL Server nie obsługuje FLOAT[4])</td><td><div class="col-example-list"><span class="col-example">min_lon: 19.9440</span><span class="col-example">max_lat: 50.0657</span></div></td></tr>
+                <tr><td><div class="col-name-cell">datetime_first</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Data i czas pierwszego pomiaru z tej stacji (z uwzględnieniem strefy czasowej)</td><td><span class="col-example">2016-04-26 00:00:00 +02:00</span></td></tr>
+                <tr><td><div class="col-name-cell">datetime_last</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Data i czas ostatniego pomiaru — NULL jeśli stacja nieaktywna</td><td><span class="col-example">2026-03-05 14:00:00 +01:00</span></td></tr>
+                <tr><td><div class="col-name-cell">fetched_at</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">DEFAULT SYSDATETIMEOFFSET()</span></td><td class="col-desc">Kiedy ten wiersz został pobrany z API OpenAQ — pomocne przy inkrementalnych aktualizacjach</td><td><span class="col-example">2026-03-05 15:30:00 +01:00</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- location_instruments -->
+        <div class="table-card" id="location_instruments">
+          <div class="table-header" onclick="toggleTable('loc-inst-body')">
+            <span class="table-name">location_instruments</span>
+            <span class="table-row-count">M:N · ~1 000 wierszy</span>
+            <span class="table-api-badge">z /v3/locations</span>
+            <span class="table-toggle" id="toggle-loc-inst-body">▼</span>
+          </div>
+          <div class="table-desc">Tabela łącząca M:N — jedna stacja może mieć wiele urządzeń, jedno urządzenie może być w wielu stacjach</div>
+          <div class="table-body" id="loc-inst-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-fk row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span><span class="fk-badge">FK</span>location_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Stacja pomiarowa → <span class="fk-link" onclick="jumpTo('locations')">locations.id</span>. Usunięcie stacji usuwa powiązania (CASCADE)</td><td><span class="col-example">8077</span></td></tr>
+                <tr class="row-fk row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span><span class="fk-badge">FK</span>instrument_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Urządzenie zainstalowane na stacji → <span class="fk-link" onclick="jumpTo('instruments')">instruments.id</span></td><td><span class="col-example">77</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- location_licenses -->
+        <div class="table-card" id="location_licenses">
+          <div class="table-header" onclick="toggleTable('loc-lic-body')">
+            <span class="table-name">location_licenses</span>
+            <span class="table-row-count">M:N · ~600 wierszy</span>
+            <span class="table-api-badge">z /v3/locations</span>
+            <span class="table-toggle" id="toggle-loc-lic-body">▼</span>
+          </div>
+          <div class="table-desc">Tabela łącząca M:N z datami — licencja stacji może się zmieniać w czasie, stąd date_from/date_to</div>
+          <div class="table-body" id="loc-lic-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-fk row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span><span class="fk-badge">FK</span>location_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Stacja → <span class="fk-link" onclick="jumpTo('locations')">locations.id</span></td><td><span class="col-example">8077</span></td></tr>
+                <tr class="row-fk row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span><span class="fk-badge">FK</span>license_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Licencja → <span class="fk-link" onclick="jumpTo('licenses')">licenses.id</span></td><td><span class="col-example">1</span></td></tr>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>date_from</div></td><td><span class="type-chip">DATE</span></td><td class="col-desc">Od kiedy ta licencja obowiązuje dla stacji — część klucza głównego</td><td><span class="col-example">2020-01-01</span></td></tr>
+                <tr><td><div class="col-name-cell">date_to</div></td><td><span class="type-chip">DATE</span> <span class="null-chip">NULL</span></td><td class="col-desc">Do kiedy obowiązuje — NULL oznacza że licencja nadal aktywna</td><td><span class="col-example">NULL</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- group-loc -->
+
+      <!-- ── SENSORY ── -->
+      <div class="group-block" id="group-sensor">
+        <div class="group-header" style="background:#f3eef7;border-color:#a07ac8">
+          <span class="group-icon">🔬</span>
+          <div>
+            <div class="group-name" style="color:#3a1a6a">Sensory</div>
+            <div class="group-desc">Jeden sensor = jeden parametr w jednej lokalizacji</div>
+          </div>
+          <span class="group-count" style="background:#dcd0f0;color:#3a1a6a">1 tabela</span>
+        </div>
+
+        <div class="table-card" id="sensors">
+          <div class="table-header" onclick="toggleTable('sensors-body')">
+            <span class="table-name">sensors ★</span>
+            <span class="table-row-count">~1 000–2 000 wierszy</span>
+            <span class="table-api-badge">/v3/locations/{id}/sensors</span>
+            <span class="table-toggle" id="toggle-sensors-body">▼</span>
+          </div>
+          <div class="table-desc">Centralna tabela dla pomiarów — każdy sensor mierzy dokładnie jeden parametr. Zawiera coverage (kompletność danych) i cache ostatniego odczytu.</div>
+          <div class="table-body" id="sensors-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Unikalny ID sensora nadawany przez OpenAQ</td><td><span class="col-example">19521</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>location_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Stacja na której zainstalowany jest sensor → <span class="fk-link" onclick="jumpTo('locations')">locations.id</span></td><td><span class="col-example">8077</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>parameter_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Co sensor mierzy → <span class="fk-link" onclick="jumpTo('parameters')">parameters.id</span></td><td><span class="col-example">2 (pm25)</span></td></tr>
+                <tr><td><div class="col-name-cell">name</div></td><td><span class="type-chip">VARCHAR(200)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Generowana nazwa sensora — zazwyczaj "parametr sensor"</td><td><span class="col-example">pm25 sensor</span></td></tr>
+                <tr><td><div class="col-name-cell">coverage_expected_count</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ile pomiarów powinno być w danym przedziale (oczekiwana liczba)</td><td><span class="col-example">8760</span></td></tr>
+                <tr><td><div class="col-name-cell">coverage_observed_count</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ile pomiarów faktycznie jest dostępnych</td><td><span class="col-example">8540</span></td></tr>
+                <tr><td><div class="col-name-cell">coverage_percent_complete</div></td><td><span class="type-chip">DECIMAL(5,2)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Procent kompletności danych — 100.00 = brak przerw</td><td><div class="col-example-list"><span class="col-example">97.49</span><span class="col-example">100.00</span><span class="col-example">45.30</span></div></td></tr>
+                <tr><td><div class="col-name-cell">coverage_datetime_from/to</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Przedział czasu dla którego obliczono coverage</td><td><span class="col-example">2024-01-01 → 2024-12-31</span></td></tr>
+                <tr><td><div class="col-name-cell">latest_value</div></td><td><span class="type-chip">DECIMAL(12,4)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Cache ostatnio zmierzonej wartości — unika JOIN z measurements dla dashboardów</td><td><div class="col-example-list"><span class="col-example">12.5000</span><span class="col-example">45.2000</span></div></td></tr>
+                <tr><td><div class="col-name-cell">latest_datetime</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Kiedy zarejestrowano latest_value</td><td><span class="col-example">2026-03-05 13:00:00 +01:00</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── POMIARY ── -->
+      <div class="group-block" id="group-meas">
+        <div class="group-header" style="background:#fdf5e8;border-color:#c8a07a">
+          <span class="group-icon">📊</span>
+          <div>
+            <div class="group-name" style="color:#5a3000">Pomiary &amp; Agregaty</div>
+            <div class="group-desc">Surowe dane + 4 poziomy agregacji czasowej</div>
+          </div>
+          <span class="group-count" style="background:#f0d8b0;color:#5a3000">5 tabel</span>
+        </div>
+
+        <!-- measurements -->
+        <div class="table-card" id="measurements">
+          <div class="table-header" onclick="toggleTable('measurements-body')">
+            <span class="table-name">measurements</span>
+            <span class="table-row-count">~50–150 M wierszy · PARTITIONED</span>
+            <span class="table-api-badge">/v3/sensors/{id}/measurements</span>
+            <span class="table-toggle" id="toggle-measurements-body">▼</span>
+          </div>
+          <div class="table-desc">Surowe pomiary — każdy pojedynczy odczyt sensora. Partycjonowana rocznie (2016–2026) dla wydajności zapytań. Największa tabela w bazie.</div>
+          <div class="table-body" id="measurements-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID wiersza</td><td><span class="col-example">1, 2, 3…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Który sensor dokonał pomiaru → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK(2)</span>datetime_utc</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Znacznik czasu pomiaru w UTC — drugi składnik klucza głównego i klucz partycji. Zawsze UTC!</td><td><span class="col-example">2024-01-15 08:00:00 +00:00</span></td></tr>
+                <tr><td><div class="col-name-cell">datetime_local</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ten sam pomiar w lokalnej strefie czasowej — ułatwia raportowanie dla użytkowników</td><td><span class="col-example">2024-01-15 09:00:00 +01:00</span></td></tr>
+                <tr><td><div class="col-name-cell">value</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Zmierzona wartość parametru w jednostkach z tabeli parameters. Może być ujemna (błąd czujnika).</td><td><div class="col-example-list"><span class="col-example">12.500000 (µg/m³ PM2.5)</span><span class="col-example">45.200000 (µg/m³ PM10)</span><span class="col-example">8.300000 (ppb NO2)</span></div></td></tr>
+                <tr><td><div class="col-name-cell">latitude / longitude</div></td><td><span class="type-chip">FLOAT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Pozycja GPS w chwili pomiaru — wypełniona tylko dla sensorów mobilnych (is_mobile=1)</td><td><div class="col-example-list"><span class="col-example">NULL (stacjonarny)</span><span class="col-example">50.0647 / 19.9450 (mobilny)</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- hourly_aggregates -->
+        <div class="table-card" id="hourly_aggregates">
+          <div class="table-header" onclick="toggleTable('hourly-body')">
+            <span class="table-name">hourly_aggregates</span>
+            <span class="table-row-count">~8–17 M wierszy/rok</span>
+            <span class="table-api-badge">/v3/sensors/{id}/hours</span>
+            <span class="table-toggle" id="toggle-hourly-body">▼</span>
+          </div>
+          <div class="table-desc">Agregaty godzinowe — średnia, min, max, odchylenie standardowe z wszystkich surowych pomiarów w ciągu jednej godziny. UNIQUE na (sensor_id, hour_utc).</div>
+          <div class="table-body" id="hourly-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID</td><td><span class="col-example">1, 2…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Sensor → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr><td><div class="col-name-cell">hour_utc</div></td><td><span class="type-chip">DATETIMEOFFSET</span></td><td class="col-desc">Początek godziny w UTC — np. 08:00 oznacza pomiary 08:00–08:59</td><td><span class="col-example">2024-01-15 08:00:00 +00:00</span></td></tr>
+                <tr><td><div class="col-name-cell">value_avg</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Średnia arytmetyczna wszystkich pomiarów w tej godzinie</td><td><span class="col-example">14.250000</span></td></tr>
+                <tr><td><div class="col-name-cell">value_min / value_max</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Minimalna i maksymalna wartość odnotowana w tej godzinie</td><td><div class="col-example-list"><span class="col-example">min: 9.100000</span><span class="col-example">max: 22.400000</span></div></td></tr>
+                <tr><td><div class="col-name-cell">value_sd</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Odchylenie standardowe — wysoka wartość sugeruje duże wahania w ciągu godziny</td><td><span class="col-example">3.720000</span></td></tr>
+                <tr><td><div class="col-name-cell">expected_count</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ile pomiarów powinno być w tej godzinie (na podstawie częstotliwości sensora)</td><td><span class="col-example">60</span></td></tr>
+                <tr><td><div class="col-name-cell">observed_count</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ile pomiarów faktycznie zostało zarejestrowanych</td><td><span class="col-example">58</span></td></tr>
+                <tr><td><div class="col-name-cell">percent_complete</div></td><td><span class="type-chip">DECIMAL(5,2)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Kompletność (observed/expected × 100) — agregat jest wiarygodny gdy bliski 100%</td><td><div class="col-example-list"><span class="col-example">96.67</span><span class="col-example">100.00</span></div></td></tr>
+                <tr><td><div class="col-name-cell">coverage_from / coverage_to</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Dokładny przedział czasowy który obejmuje ten agregat</td><td><span class="col-example">08:00:00 → 08:59:59</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- daily_aggregates -->
+        <div class="table-card" id="daily_aggregates">
+          <div class="table-header" onclick="toggleTable('daily-body')">
+            <span class="table-name">daily_aggregates</span>
+            <span class="table-row-count">~350–730 K wierszy/rok</span>
+            <span class="table-api-badge">/v3/sensors/{id}/days</span>
+            <span class="table-toggle" id="toggle-daily-body">▼</span>
+          </div>
+          <div class="table-desc">Agregaty dzienne — przydatne do analizy trendów i porównań sezonowych. Ta sama struktura co hourly ale w rozdzielczości jednego dnia.</div>
+          <div class="table-body" id="daily-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID</td><td><span class="col-example">1, 2…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Sensor → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr><td><div class="col-name-cell">day_utc</div></td><td><span class="type-chip">DATE</span></td><td class="col-desc">Dzień pomiaru w UTC. UNIQUE z sensor_id.</td><td><span class="col-example">2024-01-15</span></td></tr>
+                <tr><td><div class="col-name-cell">value_avg / min / max / sd</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Statystyki dnia — średnia całodzienna, najniższy i najwyższy pomiar, rozrzut wartości</td><td><div class="col-example-list"><span class="col-example">avg: 28.400000</span><span class="col-example">min: 5.200000</span><span class="col-example">max: 87.300000</span></div></td></tr>
+                <tr><td><div class="col-name-cell">expected/observed/percent_complete</div></td><td><span class="type-chip">INT / DECIMAL</span></td><td class="col-desc">Kompletność danych — ile z oczekiwanych pomiarów danego dnia zostało zarejestrowanych</td><td><div class="col-example-list"><span class="col-example">expected: 1440</span><span class="col-example">observed: 1432</span><span class="col-example">complete: 99.44</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- monthly_aggregates -->
+        <div class="table-card" id="monthly_aggregates">
+          <div class="table-header" onclick="toggleTable('monthly-body')">
+            <span class="table-name">monthly_aggregates</span>
+            <span class="table-row-count">~24 000 wierszy/rok</span>
+            <span class="table-api-badge">/v3/sensors/{id}/hours/monthly</span>
+            <span class="table-toggle" id="toggle-monthly-body">▼</span>
+          </div>
+          <div class="table-desc">Agregaty miesięczne — idealne do raportów sezonowych i analiz rocznych. UNIQUE na (sensor_id, year, month).</div>
+          <div class="table-body" id="monthly-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID</td><td><span class="col-example">1, 2…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Sensor → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr><td><div class="col-name-cell">year</div></td><td><span class="type-chip">SMALLINT</span></td><td class="col-desc">Rok — razem z month tworzy UNIQUE z sensor_id</td><td><span class="col-example">2024</span></td></tr>
+                <tr><td><div class="col-name-cell">month</div></td><td><span class="type-chip">TINYINT</span> <span class="null-chip">CHECK 1–12</span></td><td class="col-desc">Miesiąc (1=styczeń … 12=grudzień). Constraint CHECK pilnuje zakresu.</td><td><div class="col-example-list"><span class="col-example">1 (styczeń)</span><span class="col-example">12 (grudzień)</span></div></td></tr>
+                <tr><td><div class="col-name-cell">value_avg / min / max</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Miesięczne statystyki — do analiz sezonowości zanieczyszczeń</td><td><div class="col-example-list"><span class="col-example">avg: 55.200000 (zima)</span><span class="col-example">avg: 12.100000 (lato)</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- yearly_aggregates -->
+        <div class="table-card" id="yearly_aggregates">
+          <div class="table-header" onclick="toggleTable('yearly-body')">
+            <span class="table-name">yearly_aggregates</span>
+            <span class="table-row-count">~20 000 wierszy total</span>
+            <span class="table-api-badge">/v3/sensors/{id}/years</span>
+            <span class="table-toggle" id="toggle-yearly-body">▼</span>
+          </div>
+          <div class="table-desc">Agregaty roczne — do śledzenia długoterminowych trendów jakości powietrza w Polsce. UNIQUE na (sensor_id, year).</div>
+          <div class="table-body" id="yearly-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID</td><td><span class="col-example">1, 2…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">Sensor → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr><td><div class="col-name-cell">year</div></td><td><span class="type-chip">SMALLINT</span></td><td class="col-desc">Rok kalendarzowy</td><td><div class="col-example-list"><span class="col-example">2016</span><span class="col-example">2023</span><span class="col-example">2024</span></div></td></tr>
+                <tr><td><div class="col-name-cell">value_avg / min / max</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Statystyki roczne — roczna średnia PM2.5 np. 24 µg/m³ (norma WHO: 5 µg/m³)</td><td><div class="col-example-list"><span class="col-example">avg: 24.300000 (2018)</span><span class="col-example">avg: 18.700000 (2022)</span></div></td></tr>
+                <tr><td><div class="col-name-cell">percent_complete</div></td><td><span class="type-chip">DECIMAL(5,2)</span></td><td class="col-desc">Kompletność danych za cały rok — wartości poniżej 75% mogą być niewiarygodne statystycznie</td><td><span class="col-example">94.50</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- group-meas -->
+
+      <!-- ── OPERACYJNE ── -->
+      <div class="group-block" id="group-ops">
+        <div class="group-header" style="background:#fdeeed;border-color:#c87a7a">
+          <span class="group-icon">⚙️</span>
+          <div>
+            <div class="group-name" style="color:#5a1a1a">Operacyjne</div>
+            <div class="group-desc">Flagi jakości danych i cache dla szybkich odczytów</div>
+          </div>
+          <span class="group-count" style="background:#f0c8c8;color:#5a1a1a">2 tabele</span>
+        </div>
+
+        <!-- sensor_flags -->
+        <div class="table-card" id="sensor_flags">
+          <div class="table-header" onclick="toggleTable('flags-body')">
+            <span class="table-name">sensor_flags</span>
+            <span class="table-row-count">~kilka tys. wierszy</span>
+            <span class="table-api-badge">/v3/sensors/{id}/flags</span>
+            <span class="table-toggle" id="toggle-flags-body">▼</span>
+          </div>
+          <div class="table-desc">Flagi złej jakości — zakresy czasowe gdy dane sensora były podejrzane lub nieprawidłowe (awaria, kalibracja, burza)</div>
+          <div class="table-body" id="flags-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk"><td><div class="col-name-cell"><span class="pk-badge">PK</span>id</div></td><td><span class="type-chip">BIGINT IDENTITY</span></td><td class="col-desc">Auto-inkrementowany ID flagi</td><td><span class="col-example">1, 2…</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Sensor z problemem → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr><td><div class="col-name-cell">datetime_from</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NOT NULL</span></td><td class="col-desc">Początek okresu z podejrzanymi danymi</td><td><span class="col-example">2024-02-10 00:00:00 +01:00</span></td></tr>
+                <tr><td><div class="col-name-cell">datetime_to</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Koniec okresu — NULL = flaga nadal aktywna (problem nie rozwiązany)</td><td><div class="col-example-list"><span class="col-example">2024-02-12 12:00:00 +01:00</span><span class="col-example">NULL (aktywna)</span></div></td></tr>
+                <tr><td><div class="col-name-cell">flag_type</div></td><td><span class="type-chip">VARCHAR(100)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Kategoria problemu</td><td><div class="col-example-list"><span class="col-example">suspect</span><span class="col-example">invalid</span><span class="col-example">maintenance</span></div></td></tr>
+                <tr><td><div class="col-name-cell">note</div></td><td><span class="type-chip">NVARCHAR(MAX)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Szczegółowy opis problemu wpisywany przez operatora stacji</td><td><span class="col-example">Sensor clogged, filter replacement required</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- location_latest -->
+        <div class="table-card" id="location_latest">
+          <div class="table-header" onclick="toggleTable('latest-body')">
+            <span class="table-name">location_latest</span>
+            <span class="table-row-count">~300–500 wierszy (1 per stacja)</span>
+            <span class="table-api-badge">/v3/locations/{id}/latest</span>
+            <span class="table-toggle" id="toggle-latest-body">▼</span>
+          </div>
+          <div class="table-desc">Cache ostatnich odczytów — jeden wiersz na lokalizację. Zamiast przeszukiwać miliony pomiarów, dashboard może czytać stąd (SELECT * WHERE updated_at > X).</div>
+          <div class="table-body" id="latest-body">
+            <table class="cols-table">
+              <thead><tr><th>Kolumna</th><th>Typ</th><th>Opis</th><th>Przykładowe wartości</th></tr></thead>
+              <tbody>
+                <tr class="row-pk row-fk"><td><div class="col-name-cell"><span class="pk-badge">PK</span><span class="fk-badge">FK</span>location_id</div></td><td><span class="type-chip">INT</span></td><td class="col-desc">ID stacji — jednocześnie PK tej tabeli i FK → <span class="fk-link" onclick="jumpTo('locations')">locations.id</span>. Jeden wiersz na stację.</td><td><span class="col-example">8077</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>sensor_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Sensor który dokonał ostatniego pomiaru → <span class="fk-link" onclick="jumpTo('sensors')">sensors.id</span></td><td><span class="col-example">19521</span></td></tr>
+                <tr class="row-fk"><td><div class="col-name-cell"><span class="fk-badge">FK</span>parameter_id</div></td><td><span class="type-chip">INT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Co było mierzone przy ostatnim odczycie → <span class="fk-link" onclick="jumpTo('parameters')">parameters.id</span></td><td><span class="col-example">2 (pm25)</span></td></tr>
+                <tr><td><div class="col-name-cell">datetime_utc / local</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">NULL</span></td><td class="col-desc">Kiedy był ostatni pomiar — UTC i lokalna strefa</td><td><span class="col-example">2026-03-05 12:00:00 +00:00</span></td></tr>
+                <tr><td><div class="col-name-cell">value</div></td><td><span class="type-chip">DECIMAL(14,6)</span> <span class="null-chip">NULL</span></td><td class="col-desc">Ostatnio zmierzona wartość</td><td><span class="col-example">15.300000</span></td></tr>
+                <tr><td><div class="col-name-cell">latitude / longitude</div></td><td><span class="type-chip">FLOAT</span> <span class="null-chip">NULL</span></td><td class="col-desc">Pozycja GPS w chwili ostatniego pomiaru (dla mobilnych może być różna od locations.lat/lon)</td><td><span class="col-example">50.0647 / 19.9450</span></td></tr>
+                <tr><td><div class="col-name-cell">updated_at</div></td><td><span class="type-chip">DATETIMEOFFSET</span> <span class="null-chip">DEFAULT SYSDATETIMEOFFSET()</span></td><td class="col-desc">Kiedy ten cache był ostatnio odświeżony przez ETL — przydatne do monitorowania świeżości danych</td><td><span class="col-example">2026-03-05 15:30:00 +01:00</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- group-ops -->
+
+    </div><!-- view-tables -->
+  </div><!-- content -->
+</main>
+</div><!-- app -->
+
+<script>
+function showView(name) {
+  document.getElementById('view-tables').style.display    = name === 'tables'    ? 'block' : 'none';
+  document.getElementById('view-relations').style.display = name === 'relations' ? 'block' : 'none';
+  document.getElementById('btn-tables').classList.toggle('active',    name === 'tables');
+  document.getElementById('btn-relations').classList.toggle('active', name === 'relations');
+  document.getElementById('nav-tables').classList.toggle('active',    name === 'tables');
+  document.getElementById('nav-relations').classList.toggle('active', name === 'relations');
+}
+
+function toggleTable(bodyId) {
+  const body = document.getElementById(bodyId);
+  const toggle = document.getElementById('toggle-' + bodyId);
+  const collapsed = body.classList.toggle('collapsed');
+  if (toggle) toggle.textContent = collapsed ? '▶' : '▼';
+}
+
+function jumpTo(id) {
+  showView('tables');
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.style.boxShadow = '0 0 0 2px #c8a07a';
+      setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+      // expand if collapsed
+      const bodyMap = {
+        parameters: 'parameters-body', licenses: 'licenses-body',
+        providers: 'providers-body', owners: 'owners-body',
+        manufacturers: 'manufacturers-body', instruments: 'instruments-body',
+        locations: 'locations-body', location_instruments: 'loc-inst-body',
+        location_licenses: 'loc-lic-body', sensors: 'sensors-body',
+        measurements: 'measurements-body', hourly_aggregates: 'hourly-body',
+        daily_aggregates: 'daily-body', monthly_aggregates: 'monthly-body',
+        yearly_aggregates: 'yearly-body', sensor_flags: 'flags-body',
+        location_latest: 'latest-body'
+      };
+      const bodyId = bodyMap[id];
+      if (bodyId) {
+        const body = document.getElementById(bodyId);
+        const toggle = document.getElementById('toggle-' + bodyId);
+        if (body && body.classList.contains('collapsed')) {
+          body.classList.remove('collapsed');
+          if (toggle) toggle.textContent = '▼';
+        }
+      }
+    }
+  }, 100);
+}
+
+function doSearch(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.highlight').forEach(el => {
+    el.outerHTML = el.innerHTML;
+  });
+  if (!q) return;
+
+  showView('tables');
+
+  document.querySelectorAll('.col-name-cell, .col-desc, .col-example').forEach(el => {
+    const text = el.textContent;
+    if (text.toLowerCase().includes(q)) {
+      el.innerHTML = el.innerHTML.replace(
+        new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+        m => `<span class="highlight">${m}</span>`
+      );
+    }
+  });
+}
+
+// Start with relations view
+showView('relations');
+</script>
+</body>
+</html>
