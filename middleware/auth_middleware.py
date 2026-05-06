@@ -6,6 +6,11 @@ def register_auth(app):
 
     @app.before_request
     def check_auth():
+
+        # Dodalem pozwolenie na OPTIONS bo mi 401 wyjebywalo
+        if request.method == "OPTIONS":
+            return
+    
         # pomijamy publiczne endpointy
         if request.path.startswith("/api/v1/public"):
             return

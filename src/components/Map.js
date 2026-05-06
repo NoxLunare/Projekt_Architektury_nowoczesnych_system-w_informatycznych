@@ -6,7 +6,7 @@ import {
   useMap
 } from "react-leaflet";
 import { useEffect, useState } from "react";
-import { cities } from "../data/mockData";
+import { fetchStations, fetchAirQuality } from "../api/api";
 
 function FixMap() {
   const map = useMap();
@@ -62,7 +62,7 @@ function getFinalQuality(city) {
   return "dobra";
 }
 
-function Markers({ onSelectCity }) {
+function Markers({ cities, onSelectCity }){
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
 
@@ -120,6 +120,47 @@ function Markers({ onSelectCity }) {
 }
 
 function Map({ onSelectCity }) {
+  const [cities, setCities] = useState([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const stations = await fetchStations();
+
+        const stationsWithQuality = await Promise.all(
+          stations.map(async (station) => {
+            const qualityData = await fetchAirQuality(station.id);
+
+            return {
+              id: station.id,
+              name: station.city,
+
+              position:
+                station.city === "Poznan"
+                  ? [52.4064, 16.9252]
+                  : [52.2297, 21.0122],
+
+              pm25: qualityData.details["PM2.5"],
+              pm10: qualityData.details["PM10"],
+              no2: qualityData.details["NO2"],
+
+              // backend nie zwraca O3
+              o3: 0,
+
+              quality: qualityData.overall,
+            };
+          })
+        );
+
+        setCities(stationsWithQuality);
+      } catch (error) {
+        console.error("Błąd pobierania danych:", error);
+      }
+    }
+
+    loadData();
+  }, []);
+
   return (
     <MapContainer
       center={[52, 19]}
@@ -128,7 +169,7 @@ function Map({ onSelectCity }) {
     >
       <FixMap />
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <Markers onSelectCity={onSelectCity} />
+      <Markers cities={cities} onSelectCity={onSelectCity} />
     </MapContainer>
   );
 }

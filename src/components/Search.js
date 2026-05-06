@@ -1,28 +1,40 @@
-import { useState } from "react";
-import { cities } from "../data/mockData";
+import { useState, useEffect } from "react";
+import { fetchCities } from "../api/api";
 
 function Search({ onSelectCity }) {
   const [query, setQuery] = useState("");
   const [filtered, setFiltered] = useState([]);
 
-  const handleChange = (e) => {
-    const value = e.target.value;
-    setQuery(value);
+  useEffect(() => {
+    async function loadCities() {
+      if (query.length === 0) {
+        setFiltered([]);
+        return;
+      }
 
-    if (value.length > 0) {
-      const results = cities.filter((c) =>
-        c.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setFiltered(results);
-    } else {
-      setFiltered([]);
+      try {
+        const data = await fetchCities(query);
+
+        setFiltered(data);
+      } catch (error) {
+        console.error("Błąd pobierania miast:", error);
+      }
     }
+
+    loadCities();
+  }, [query]);
+
+  const handleChange = (e) => {
+    setQuery(e.target.value);
   };
 
   const handleSelect = (city) => {
-    setQuery(city.name);
+    setQuery(city);
     setFiltered([]);
-    onSelectCity(city);
+
+    onSelectCity({
+      name: city
+    });
   };
 
   return (
@@ -62,7 +74,7 @@ function Search({ onSelectCity }) {
                 color: "black"
               }}
             >
-              {city.name}
+              {city}
             </div>
           ))}
         </div>

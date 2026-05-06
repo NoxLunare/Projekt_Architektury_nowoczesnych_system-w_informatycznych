@@ -1,19 +1,5 @@
-import { useState } from "react";
-
-function getRecommendation(quality) {
-  switch (quality) {
-    case "dobra":
-      return "Powietrze jest czyste i bezpieczne dla zdrowia. Można bez ograniczeń przebywać na zewnątrz oraz podejmować aktywność fizyczną. Nie ma potrzeby stosowania dodatkowych środków ostrożności.";
-    case "umiarkowana":
-      return "Jakość powietrza jest akceptowalna, jednak osoby wrażliwe (dzieci, seniorzy, osoby z chorobami układu oddechowego) powinny ograniczyć intensywny wysiłek na świeżym powietrzu. Zaleca się monitorowanie sytuacji.";
-    case "zła":
-      return "Powietrze może negatywnie wpływać na zdrowie. Zaleca się ograniczenie przebywania na zewnątrz, szczególnie dla osób wrażliwych. Warto unikać aktywności fizycznej na świeżym powietrzu oraz rozważyć zamknięcie okien.";
-    case "bardzo zła":
-      return "Powietrze stanowi poważne zagrożenie dla zdrowia. Zaleca się pozostanie w pomieszczeniach, unikanie wychodzenia na zewnątrz oraz zamknięcie okien. W miarę możliwości należy korzystać z oczyszczaczy powietrza.";
-    default:
-      return "";
-  }
-}
+import { useEffect, useState } from "react";
+import { fetchRecommendation } from "../api/api";
 
 function getColor(quality) {
   switch (quality) {
@@ -63,17 +49,36 @@ function getFinalQuality(city) {
     getLevelPM25(city.pm25),
     getLevelPM10(city.pm10),
     getLevelNO2(city.no2),
-    getLevelO3(city.o3)
+    //getLevelO3(city.o3)
   ];
 
   if (levels.includes("bardzo zła")) return "bardzo zła";
   if (levels.includes("zła")) return "zła";
   if (levels.includes("umiarkowana")) return "umiarkowana";
+
   return "dobra";
 }
 
 function Sidebar({ city }) {
   const [showExport, setShowExport] = useState(false);
+
+  const [recommendation, setRecommendation] = useState("");
+
+  useEffect(() => {
+    async function loadRecommendation() {
+      if (!city) return;
+
+      try {
+        const data = await fetchRecommendation(city.name);
+
+        setRecommendation(data.recommendation);
+      } catch (error) {
+        console.error("Błąd pobierania rekomendacji:", error);
+      }
+    }
+
+    loadRecommendation();
+  }, [city]);
 
   if (!city) {
     return (
@@ -87,7 +92,9 @@ function Sidebar({ city }) {
 
   return (
     <div style={containerStyle}>
-      <h2 style={{ marginBottom: "10px" }}>{city.name}</h2>
+      <h2 style={{ marginBottom: "10px" }}>
+        {city.name}
+      </h2>
 
       <div
         style={{
@@ -103,14 +110,22 @@ function Sidebar({ city }) {
       </div>
 
       <div style={cardStyle}>
-        <p><strong>PM2.5:</strong> {city.pm25}</p>
-        <p><strong>PM10:</strong> {city.pm10}</p>
-        <p><strong>NO₂:</strong> {city.no2}</p>
-        <p><strong>O₃:</strong> {city.o3}</p>
+        <p>
+          <strong>PM2.5:</strong> {city.pm25}
+        </p>
+
+        <p>
+          <strong>PM10:</strong> {city.pm10}
+        </p>
+
+        <p>
+          <strong>NO₂:</strong> {city.no2}
+        </p>
       </div>
 
       <div style={{ ...cardStyle, marginTop: "15px" }}>
         <h4>Rekomendacje</h4>
+
         <p
           style={{
             textAlign: "justify",
@@ -118,7 +133,7 @@ function Sidebar({ city }) {
             fontSize: "14px"
           }}
         >
-          {getRecommendation(quality)}
+          {recommendation}
         </p>
       </div>
 
@@ -131,14 +146,30 @@ function Sidebar({ city }) {
         </button>
 
         {showExport && (
-          <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "5px" }}>
-            <button style={subButtonStyle}>CSV</button>
-            <button style={subButtonStyle}>PDF</button>
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "5px"
+            }}
+          >
+            <button style={subButtonStyle}>
+              CSV
+            </button>
+
+            <button style={subButtonStyle}>
+              PDF
+            </button>
           </div>
         )}
 
         <button
-          style={{ ...buttonStyle, marginTop: "10px", background: "#607d8b" }}
+          style={{
+            ...buttonStyle,
+            marginTop: "10px",
+            background: "#607d8b"
+          }}
         >
           Historia pomiarów
         </button>
