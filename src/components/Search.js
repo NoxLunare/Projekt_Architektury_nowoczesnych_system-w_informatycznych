@@ -1,78 +1,87 @@
-import { useState, useEffect } from "react";
+// src/components/Search.js
+import { useState, useEffect, useRef } from "react";
 import { fetchCities } from "../api/api";
 
-function Search({ onSelectCity }) {
+function Search({ onSelectStation }) {
   const [query, setQuery] = useState("");
+  const [allCities, setAllCities] = useState([]);
   const [filtered, setFiltered] = useState([]);
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
 
+  // Pobieramy pełną listę miast raz przy starcie
   useEffect(() => {
-    async function loadCities() {
-      if (query.length === 0) {
-        setFiltered([]);
-        return;
-      }
+    fetchCities("PL")
+      .then(setAllCities)
+      .catch((err) => console.error("Błąd pobierania miast:", err));
+  }, []);
 
-      try {
-        const data = await fetchCities(query);
+  // Filtrujemy lokalnie — nie trzeba bić w backend przy każdym znaku
+  useEffect(() => {
+    if (query.trim().length === 0) {
+      setFiltered([]);
+      setOpen(false);
+      return;
+    }
+    const q = query.toLowerCase();
+    const matches = allCities.filter((city) => city.toLowerCase().includes(q));
+    setFiltered(matches);
+    setOpen(matches.length > 0);
+  }, [query, allCities]);
 
-        setFiltered(data);
-      } catch (error) {
-        console.error("Błąd pobierania miast:", error);
+  // Zamknij dropdown przy kliknięciu poza
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
       }
     }
-
-    loadCities();
-  }, [query]);
-
-  const handleChange = (e) => {
-    setQuery(e.target.value);
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSelect = (city) => {
     setQuery(city);
-    setFiltered([]);
-
-    onSelectCity({
-      name: city
-    });
+    setOpen(false);
+    // Przekazujemy nazwę miasta — App.js / Map.js może użyć tego do podświetlenia markera
+    onSelectStation({ name: city });
   };
 
   return (
-    <div style={{ position: "relative", width: "300px" }}>
+    <div ref={wrapperRef} style={{ position: "relative", width: 300 }}>
       <input
         type="text"
         value={query}
-        onChange={handleChange}
+        onChange={(e) => setQuery(e.target.value)}
         placeholder="Wyszukaj miasto..."
         style={{
           width: "100%",
-          padding: "8px",
-          borderRadius: "6px",
-          border: "1px solid #ccc"
+          padding: "8px 12px",
+          borderRadius: 6,
+          border: "1px solid #ccc",
+          fontSize: 14,
+          boxSizing: "border-box",
         }}
       />
 
-      {filtered.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "40px",
-            width: "100%",
-            background: "white",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-            zIndex: 1000
-          }}
-        >
-          {filtered.map((city, index) => (
+      {open && (
+        <div style={{
+          position: "absolute", top: 40, width: "100%",
+          background: "white", border: "1px solid #ccc",
+          borderRadius: 6, zIndex: 1000,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          maxHeight: 220, overflowY: "auto",
+        }}>
+          {filtered.map((city) => (
             <div
-              key={index}
+              key={city}
               onClick={() => handleSelect(city)}
               style={{
-                padding: "8px",
-                cursor: "pointer",
-                color: "black"
+                padding: "8px 12px", cursor: "pointer", color: "#222",
+                fontSize: 14,
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f4ff")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
             >
               {city}
             </div>
