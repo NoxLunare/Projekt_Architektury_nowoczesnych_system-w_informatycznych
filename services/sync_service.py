@@ -307,23 +307,29 @@ def sync_measurements(sensor_id: int, limit: int = 100) -> int:
 # ─────────────────────────────────────────
 
 def sync_location_latest(location_id: int) -> int:
-    """
-    Pobiera i upsertuje najnowsze pomiary dla lokalizacji (cache per sensor+parametr).
-    """
     raw = oaq.fetch_location_latest(location_id)
     conn = get_connection()
     count = 0
 
     with conn:
         for item in raw:
-            sensor_id = (item.get("sensorsId") or item.get("sensor_id"))
-            param_id  = (item.get("parameterId") or item.get("parameter_id"))
+            sensor_id = item.get("sensorsId")
+            value     = item.get("value")
             dt        = item.get("datetime") or {}
             coords    = item.get("coordinates") or {}
-            value     = item.get("value")
 
             if not sensor_id or value is None:
                 continue
+
+            # pobierz parameter_id z lokalnej bazy
+            row = conn.execute(
+                "SELECT parameter_id FROM sensors WHERE id = ?", (sensor_id,)
+            ).fetchone()
+
+            if not row:
+                continue  # sensor nie był jeszcze zsynchronizowany
+
+            param_id = row["parameter_id"]
 
             conn.execute("""
                 INSERT INTO location_latest
@@ -339,18 +345,17 @@ def sync_location_latest(location_id: int) -> int:
                     updated_at     = excluded.updated_at
             """, (
                 location_id, sensor_id, param_id,
-                dt.get("utc") if isinstance(dt, dict) else dt,
-                dt.get("local") if isinstance(dt, dict) else None,
+                dt.get("utc"),
+                dt.get("local"),
                 value,
                 coords.get("latitude"),
                 coords.get("longitude"),
-                item.get("updated_at") or oaq.now_iso(),
+                item.get("updatedAt") or oaq.now_iso(),
             ))
             count += 1
 
     conn.close()
     return count
-
 
 # ─────────────────────────────────────────
 # Agregaty
@@ -382,31 +387,105 @@ def _upsert_aggregates(conn, table: str, sensor_id: int, rows: list[dict], time_
 def sync_hourly(sensor_id: int, limit: int = 168) -> int:
     raw = oaq.fetch_hourly(sensor_id, limit=limit)
     conn = get_connection()
+    inserted = 0
+
     with conn:
-        n = _upsert_aggregates(conn, "hourly_aggregates", sensor_id, raw, "hour_utc", [
-            "hour_local", "value_avg", "value_min", "value_max", "value_median",
-            "expected_count", "observed_count", "percent_complete",
-            "coverage_from", "coverage_to", "updated_at"
-        ])
+        for row in raw:
+            period   = row.get("period") or {}
+            summary  = row.get("summary") or {}
+            coverage = row.get("coverage") or {}
+            dt_from  = period.get("datetimeFrom") or {}
+            dt_to    = period.get("datetimeTo") or {}
+
+            cur = conn.execute("""
+                INSERT INTO hourly_aggregates
+                    (sensor_id, hour_utc, hour_local, value_avg, value_min, value_max, value_median,
+                     expected_count, observed_count, percent_complete, coverage_from, coverage_to, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(sensor_id, hour_utc) DO UPDATE SET
+                    value_avg        = excluded.value_avg,
+                    value_min        = excluded.value_min,
+                    value_max        = excluded.value_max,
+                    value_median     = excluded.value_median,
+                    expected_count   = excluded.expected_count,
+                    observed_count   = excluded.observed_count,
+                    percent_complete = excluded.percent_complete,
+                    coverage_from    = excluded.coverage_from,
+                    coverage_to      = excluded.coverage_to,
+                    updated_at       = excluded.updated_at
+            """, (
+                sensor_id,
+                dt_from.get("utc"),
+                dt_from.get("local"),
+                summary.get("avg"),
+                summary.get("min"),
+                summary.get("max"),
+                summary.get("median"),
+                coverage.get("expectedCount"),
+                coverage.get("observedCount"),
+                coverage.get("percentComplete"),
+                (coverage.get("datetimeFrom") or {}).get("utc"),
+                (coverage.get("datetimeTo") or {}).get("utc"),
+                oaq.now_iso(),
+            ))
+            inserted += cur.rowcount
+
     conn.close()
-    return n
+    return inserted
 
 
 def sync_daily(sensor_id: int, limit: int = 30) -> int:
     raw = oaq.fetch_daily(sensor_id, limit=limit)
     conn = get_connection()
-    with conn:
-        n = _upsert_aggregates(conn, "daily_aggregates", sensor_id, raw, "day_utc", [
-            "value_avg", "value_min", "value_max", "value_median",
-            "expected_count", "observed_count", "percent_complete",
-            "coverage_from", "coverage_to", "updated_at"
-        ])
-    conn.close()
-    return n
+    inserted = 0
 
+    with conn:
+        for row in raw:
+            period   = row.get("period") or {}
+            summary  = row.get("summary") or {}
+            coverage = row.get("coverage") or {}
+            dt_from  = period.get("datetimeFrom") or {}
+
+            cur = conn.execute("""
+                INSERT INTO daily_aggregates
+                    (sensor_id, day_utc, value_avg, value_min, value_max, value_median,
+                     expected_count, observed_count, percent_complete, coverage_from, coverage_to, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(sensor_id, day_utc) DO UPDATE SET
+                    value_avg        = excluded.value_avg,
+                    value_min        = excluded.value_min,
+                    value_max        = excluded.value_max,
+                    value_median     = excluded.value_median,
+                    expected_count   = excluded.expected_count,
+                    observed_count   = excluded.observed_count,
+                    percent_complete = excluded.percent_complete,
+                    coverage_from    = excluded.coverage_from,
+                    coverage_to      = excluded.coverage_to,
+                    updated_at       = excluded.updated_at
+            """, (
+                sensor_id,
+                dt_from.get("utc"),
+                summary.get("avg"),
+                summary.get("min"),
+                summary.get("max"),
+                summary.get("median"),
+                coverage.get("expectedCount"),
+                coverage.get("observedCount"),
+                coverage.get("percentComplete"),
+                (coverage.get("datetimeFrom") or {}).get("utc"),
+                (coverage.get("datetimeTo") or {}).get("utc"),
+                oaq.now_iso(),
+            ))
+            inserted += cur.rowcount
+
+    conn.close()
+    return inserted
 
 def sync_monthly(sensor_id: int, limit: int = 12) -> int:
     raw = oaq.fetch_monthly(sensor_id, limit=limit)
+    if raw:
+        import json
+        print(">>> monthly sample:", json.dumps(raw[0], indent=2), flush=True)
     conn = get_connection()
     with conn:
         for row in raw:
@@ -444,9 +523,16 @@ def sync_monthly(sensor_id: int, limit: int = 12) -> int:
 def sync_yearly(sensor_id: int, limit: int = 10) -> int:
     raw = oaq.fetch_yearly(sensor_id, limit=limit)
     conn = get_connection()
+    inserted = 0
+
     with conn:
         for row in raw:
-            conn.execute("""
+            period   = row.get("period") or {}
+            summary  = row.get("summary") or {}
+            coverage = row.get("coverage") or {}
+            dt_from  = period.get("datetimeFrom") or {}
+
+            cur = conn.execute("""
                 INSERT INTO yearly_aggregates
                     (sensor_id, year, value_avg, value_min, value_max, value_median,
                      expected_count, observed_count, percent_complete, updated_at)
@@ -462,15 +548,17 @@ def sync_yearly(sensor_id: int, limit: int = 10) -> int:
                     updated_at       = excluded.updated_at
             """, (
                 sensor_id,
-                row.get("year"),
-                row.get("value_avg") or row.get("value", {}).get("avg"),
-                row.get("value_min") or row.get("value", {}).get("min"),
-                row.get("value_max") or row.get("value", {}).get("max"),
-                row.get("value_median") or row.get("value", {}).get("median"),
-                row.get("expected_count") or row.get("coverage", {}).get("expected_count"),
-                row.get("observed_count") or row.get("coverage", {}).get("observed_count"),
-                row.get("percent_complete") or row.get("coverage", {}).get("percent_complete"),
-                row.get("updated_at") or oaq.now_iso(),
+                dt_from.get("utc", "")[:4],  # rok z daty UTC np. "2018-..."
+                summary.get("avg"),
+                summary.get("min"),
+                summary.get("max"),
+                summary.get("median"),
+                coverage.get("expectedCount"),
+                coverage.get("observedCount"),
+                coverage.get("percentComplete"),
+                oaq.now_iso(),
             ))
+            inserted += cur.rowcount
+
     conn.close()
-    return len(raw)
+    return inserted

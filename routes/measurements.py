@@ -82,3 +82,42 @@ def get_latest(location_id):
     """, (location_id,)).fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
+
+@measurements_bp.route("/sensor/<int:sensor_id>/monthly", methods=["GET"])
+def get_monthly(sensor_id):
+    limit = int(request.args.get("limit", 12))
+    refresh = request.args.get("refresh", "0") == "1"
+
+    if refresh:
+        from services.sync_service import sync_monthly
+        sync_monthly(sensor_id, limit=limit)
+
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT * FROM monthly_aggregates
+        WHERE sensor_id = ?
+        ORDER BY year DESC, month DESC
+        LIMIT ?
+    """, (sensor_id, limit)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@measurements_bp.route("/sensor/<int:sensor_id>/yearly", methods=["GET"])
+def get_yearly(sensor_id):
+    limit = int(request.args.get("limit", 10))
+    refresh = request.args.get("refresh", "0") == "1"
+
+    if refresh:
+        from services.sync_service import sync_yearly
+        sync_yearly(sensor_id, limit=limit)
+
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT * FROM yearly_aggregates
+        WHERE sensor_id = ?
+        ORDER BY year DESC
+        LIMIT ?
+    """, (sensor_id, limit)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])

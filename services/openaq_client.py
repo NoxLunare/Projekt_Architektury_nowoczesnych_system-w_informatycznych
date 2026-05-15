@@ -78,7 +78,8 @@ def fetch_daily(sensor_id: int, limit: int = 30) -> list[dict]:
     return _get_results(f"/sensors/{sensor_id}/days", {"limit": limit})
 
 def fetch_monthly(sensor_id: int, limit: int = 12) -> list[dict]:
-    return _get_results(f"/sensors/{sensor_id}/months", {"limit": limit})
+    """OpenAQ v3 nie udostępnia agregatów miesięcznych dla wszystkich sensorów."""
+    return []  # endpoint niedostępny
 
 def fetch_yearly(sensor_id: int, limit: int = 10) -> list[dict]:
     return _get_results(f"/sensors/{sensor_id}/years", {"limit": limit})
