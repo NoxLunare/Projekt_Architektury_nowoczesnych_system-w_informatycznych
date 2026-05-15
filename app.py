@@ -1,7 +1,11 @@
+from dotenv import load_dotenv
+load_dotenv()  # ← musi być pierwsza linia przed wszystkimi innymi importami
+
 from flask import Flask
 from flask_cors import CORS
 
 from middleware import register_middlewares
+from database.schema import init_db
 
 from routes.cities import cities_bp
 from routes.stations import stations_bp
@@ -13,6 +17,9 @@ app = Flask(__name__)
 CORS(app)
 
 register_middlewares(app)
+
+with app.app_context():
+    init_db()
 
 app.register_blueprint(cities_bp, url_prefix="/api/v1/cities")
 app.register_blueprint(stations_bp, url_prefix="/api/v1/stations")
