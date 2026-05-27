@@ -1,35 +1,39 @@
 // src/components/Search.js
 import { useState, useEffect, useRef } from "react";
-import { fetchCities } from "../api/api";
 
-function Search({ onSelectStation }) {
+function Search({ stations = [], onSelectStation }) {
   const [query, setQuery] = useState("");
-  const [allCities, setAllCities] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
-  // Pobieramy pełną listę miast raz przy starcie
+  // Filtruj po liście stacji już załadowanych do mapy
   useEffect(() => {
-    fetchCities("PL")
-      .then(setAllCities)
-      .catch((err) => console.error("Błąd pobierania miast:", err));
-  }, []);
-
-  // Filtrujemy lokalnie — nie trzeba bić w backend przy każdym znaku
-  useEffect(() => {
-    if (query.trim().length === 0) {
+    const q = query.trim().toLowerCase();
+    console.log("[Search] query:", q, "stations.length:", stations.length);
+    if (q.length === 0) {
       setFiltered([]);
       setOpen(false);
       return;
     }
-    const q = query.toLowerCase();
-    const matches = allCities.filter((city) => city.toLowerCase().includes(q));
-    setFiltered(matches);
-    setOpen(matches.length > 0);
-  }, [query, allCities]);
+    if (stations.length > 0) console.log("[Search] przykładowa stacja:", JSON.stringify(stations[0]));
+    const matches = stations.filter((s) => {
+      const locality = (s.locality || "").toLowerCase();
+      const name = (s.name || "").toLowerCase();
+      return locality.includes(q) || name.includes(q);
+    });
+    // Deduplikuj po locality i posortuj
+    const seen = new Set();
+    const unique = matches.filter((s) => {
+      const key = s.locality || s.name;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setFiltered(unique.slice(0, 10));
+    setOpen(unique.length > 0);
+  }, [query, stations]);
 
-  // Zamknij dropdown przy kliknięciu poza
   useEffect(() => {
     function handleClickOutside(e) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
@@ -40,50 +44,36 @@ function Search({ onSelectStation }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (city) => {
-    setQuery(city);
+  const handleSelect = (station) => {
+    setQuery(station.locality || station.name);
     setOpen(false);
-    // Przekazujemy nazwę miasta — App.js / Map.js może użyć tego do podświetlenia markera
-    onSelectStation({ name: city });
+    onSelectStation(station); // przekazujemy pełny obiekt stacji z koordynatami
   };
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", width: 300 }}>
+    <div ref={wrapperRef} className="search-wrap">
+      <span className="search-icon">⌕</span>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Wyszukaj miasto..."
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          borderRadius: 6,
-          border: "1px solid #ccc",
-          fontSize: 14,
-          boxSizing: "border-box",
-        }}
+        placeholder="Szukaj miasta lub stacji..."
+        className="search-input"
       />
-
       {open && (
-        <div style={{
-          position: "absolute", top: 40, width: "100%",
-          background: "white", border: "1px solid #ccc",
-          borderRadius: 6, zIndex: 1000,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          maxHeight: 220, overflowY: "auto",
-        }}>
-          {filtered.map((city) => (
+        <div className="search-dropdown">
+          {filtered.map((station) => (
             <div
-              key={city}
-              onClick={() => handleSelect(city)}
-              style={{
-                padding: "8px 12px", cursor: "pointer", color: "#222",
-                fontSize: 14,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f4ff")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+              key={station.id}
+              className="search-item"
+              onClick={() => handleSelect(station)}
             >
-              {city}
+              <span style={{ fontWeight: 600 }}>{station.locality || station.name}</span>
+              {station.locality && station.name !== station.locality && (
+                <span style={{ fontSize: 11, opacity: 0.6, marginLeft: 6 }}>
+                  {station.name}
+                </span>
+              )}
             </div>
           ))}
         </div>

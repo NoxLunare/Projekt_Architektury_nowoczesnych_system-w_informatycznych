@@ -3,30 +3,21 @@ import { useEffect, useState } from "react";
 import { fetchRecommendation, fetchHourlyMeasurements } from "../api/api";
 import { getFinalQuality, getQualityColor } from "../utils/airQuality";
 
-// Mini wykres słupkowy dla pomiarów godzinowych
-function HourlyChart({ data, label }) {
+function HourlyChart({ data }) {
   if (!data || data.length === 0) return null;
-
-  const max = Math.max(...data.map((d) => d.value_avg));
   const last8 = [...data].reverse().slice(0, 8);
+  const max = Math.max(...last8.map((d) => d.value_avg), 1);
 
   return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{label} – ostatnie 8h</div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 40 }}>
+    <div className="hourly-chart">
+      <div className="chart-bars">
         {last8.map((d, i) => {
-          const height = Math.round((d.value_avg / max) * 40);
+          const h = Math.round((d.value_avg / max) * 44);
           const hour = new Date(d.hour_local).getHours();
           return (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-              <div
-                title={`${d.value_avg} µg/m³`}
-                style={{
-                  width: "100%", height, background: "#2a5298",
-                  borderRadius: "2px 2px 0 0", minHeight: 2,
-                }}
-              />
-              <div style={{ fontSize: 9, color: "#999", marginTop: 2 }}>{hour}h</div>
+            <div key={i} className="chart-bar-wrap">
+              <div className="chart-bar" style={{ height: h }} title={`${d.value_avg} µg/m³`} />
+              <div className="chart-hour">{hour}h</div>
             </div>
           );
         })}
@@ -35,11 +26,21 @@ function HourlyChart({ data, label }) {
   );
 }
 
+function qualityStyle(quality) {
+  const map = {
+    "dobra":       { bg: "#16a34a", color: "#fff" },
+    "umiarkowana": { bg: "#d97706", color: "#fff" },
+    "zła":         { bg: "#dc2626", color: "#fff" },
+    "bardzo zła":  { bg: "#7f1d1d", color: "#fca5a5" },
+  };
+  return map[quality] || { bg: "#374151", color: "#d1d5db" };
+}
+
 function Sidebar({ station }) {
   const [recommendation, setRecommendation] = useState("");
   const [hourlyData, setHourlyData] = useState([]);
-  const [showExport, setShowExport] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
     if (!station) return;
@@ -49,7 +50,6 @@ function Sidebar({ station }) {
 
     const tasks = [];
 
-    // Rekomendacja
     if (station.name) {
       tasks.push(
         fetchRecommendation(station.name)
@@ -58,10 +58,7 @@ function Sidebar({ station }) {
       );
     }
 
-    // Dane godzinowe — bierzemy sensor PM10 jeśli dostępny
-    const pm10Sensor = station.sensors?.find(
-      (s) => s.parameter_name === "pm10"
-    );
+    const pm10Sensor = station.sensors?.find((s) => s.parameter_name === "pm10");
     if (pm10Sensor) {
       tasks.push(
         fetchHourlyMeasurements(pm10Sensor.id)
@@ -75,107 +72,90 @@ function Sidebar({ station }) {
 
   if (!station) {
     return (
-      <div style={containerStyle}>
-        <p style={{ color: "#999", textAlign: "center", marginTop: 40 }}>
-          Kliknij stację na mapie lub wyszukaj miasto
-        </p>
+      <div className="sidebar-wrap">
+        <div className="sidebar-empty">
+          <div className="sidebar-empty-icon">◈</div>
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            Kliknij stację na mapie<br />lub wyszukaj miasto
+          </div>
+        </div>
       </div>
     );
   }
 
   const quality = station.quality || getFinalQuality(station.measurements || {});
-  const color = getQualityColor(quality);
+  const qStyle = qualityStyle(quality);
   const m = station.measurements || {};
 
+  const params = [
+    { key: "pm25", label: "PM2.5" },
+    { key: "pm10", label: "PM10" },
+    { key: "no2",  label: "NO₂" },
+    { key: "o3",   label: "O₃" },
+    { key: "so2",  label: "SO₂" },
+  ].filter(({ key }) => m[key] != null);
+
   return (
-    <div style={containerStyle}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>{station.name}</h2>
+    <div className="sidebar-wrap">
+      <div className="sidebar-city-name">{station.name}</div>
       {station.fullName && station.fullName !== station.name && (
-        <div style={{ fontSize: 11, color: "#888", marginBottom: 10 }}>{station.fullName}</div>
+        <div className="sidebar-full-name">{station.fullName}</div>
       )}
 
-      {/* Jakość */}
-      <div style={{
-        background: color, color: "white", padding: "8px 12px",
-        borderRadius: 8, marginBottom: 12, textAlign: "center", fontWeight: "bold",
-      }}>
-        Jakość: {quality}
+      <div
+        className="quality-badge"
+        style={{ background: qStyle.bg, color: qStyle.color }}
+      >
+        {quality}
       </div>
 
-      {/* Pomiary */}
-      <div style={cardStyle}>
-        {[
-          { key: "pm25", label: "PM2.5", unit: "µg/m³" },
-          { key: "pm10", label: "PM10",  unit: "µg/m³" },
-          { key: "no2",  label: "NO₂",   unit: "µg/m³" },
-          { key: "o3",   label: "O₃",    unit: "µg/m³" },
-          { key: "so2",  label: "SO₂",   unit: "µg/m³" },
-        ]
-          .filter(({ key }) => m[key] != null)
-          .map(({ key, label, unit }) => (
-            <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <span style={{ fontWeight: "bold", fontSize: 13 }}>{label}</span>
-              <span style={{ fontSize: 13 }}>{m[key]} {unit}</span>
+      {params.length > 0 && (
+        <div className="measurements-grid">
+          {params.map(({ key, label }) => (
+            <div key={key} className="measurement-card">
+              <div className="measurement-label">{label}</div>
+              <div className="measurement-value">
+                {m[key]}
+                <span className="measurement-unit">µg/m³</span>
+              </div>
             </div>
           ))}
-      </div>
-
-      {/* Wykres godzinowy PM10 */}
-      {hourlyData.length > 0 && (
-        <div style={{ ...cardStyle, marginTop: 12 }}>
-          <HourlyChart data={hourlyData} label="PM10" />
         </div>
       )}
 
-      {/* Rekomendacje */}
-      <div style={{ ...cardStyle, marginTop: 12 }}>
-        <h4 style={{ margin: "0 0 6px", fontSize: 13 }}>Rekomendacje</h4>
+      {hourlyData.length > 0 && (
+        <>
+          <div className="sidebar-section-label">PM10 — ostatnie 8h</div>
+          <div className="recommendation-box" style={{ padding: "10px 12px" }}>
+            <HourlyChart data={hourlyData} />
+          </div>
+        </>
+      )}
+
+      <div className="sidebar-section-label">Rekomendacje</div>
+      <div className="recommendation-box">
         {loading ? (
-          <p style={{ color: "#aaa", fontSize: 13 }}>Ładowanie...</p>
+          <span style={{ color: "var(--muted)" }}>Ładowanie...</span>
         ) : (
-          <p style={{ textAlign: "justify", lineHeight: 1.6, fontSize: 13, margin: 0 }}>
-            {recommendation || "Brak danych."}
-          </p>
+          recommendation || "Brak danych."
         )}
       </div>
 
-      {/* Eksport */}
-      <div style={{ marginTop: 16 }}>
-        <button style={buttonStyle} onClick={() => setShowExport(!showExport)}>
+      <div className="sidebar-actions" style={{ marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={() => setShowExport(!showExport)}>
           Eksport
         </button>
-        {showExport && (
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-            <button style={subButtonStyle}>CSV</button>
-            <button style={subButtonStyle}>PDF</button>
-          </div>
-        )}
-        <button style={{ ...buttonStyle, marginTop: 8, background: "#607d8b" }}>
-          Historia pomiarów
-        </button>
+        <button className="btn btn-secondary">Historia</button>
       </div>
+
+      {showExport && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button className="btn btn-secondary">CSV</button>
+          <button className="btn btn-secondary">PDF</button>
+        </div>
+      )}
     </div>
   );
 }
-
-const containerStyle = {
-  width: 300, minWidth: 300, padding: 20,
-  background: "#f5f7fa", borderRadius: 12,
-  boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-  overflowY: "auto", maxHeight: "calc(100vh - 100px)",
-};
-const cardStyle = {
-  background: "white", padding: 10,
-  borderRadius: 8, boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
-};
-const buttonStyle = {
-  width: "100%", padding: 10, border: "none",
-  borderRadius: 8, background: "#2a5298",
-  color: "white", cursor: "pointer", fontWeight: "bold",
-};
-const subButtonStyle = {
-  padding: 8, border: "none", borderRadius: 6,
-  background: "#e0e0e0", cursor: "pointer",
-};
 
 export default Sidebar;
