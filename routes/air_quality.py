@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database.connection import get_connection
 from services.sync_service import sync_sensors, sync_location_latest
+from datetime import date, datetime
 
 air_quality_bp = Blueprint("air_quality", __name__)
 
@@ -20,7 +21,7 @@ def classify(score: int) -> str:
             ["dobra", "umiarkowana", "zła", "bardzo zła"]
         )}
 
-    return descriptions.get(score, "--BRAK POMIARU--")
+    return descriptions.get(score, "Brak pomiarów")
 
 
 @air_quality_bp.route("/station/<int:location_id>", methods=["GET"])
@@ -49,12 +50,14 @@ def get_air_quality(location_id):
         JOIN parameters pa ON pa.id = ll.parameter_id
         WHERE ll.location_id = ?
     """, (location_id,)).fetchall()
+    
+    conn.close()
 
     if not latest:
-        conn.close()
-        return jsonify({"error": "Not found", "message": "Lokalizacja nie istnieje albo nie posiada żadnych pomiarów"}), 404
+        return jsonify({"error": "Not found", "message": "Lokalizacja nie istnieje albo nie posiada żadnych stacji / pomiarów"}), 404
 
     latest = [dict(l) for l in latest]
+    latest = [l for l in latest if date.today() == datetime.fromisoformat(l.get("datetime_utc")).date()]
 
     pm10 = next((l for l in latest if l.get("parameter_name") == "pm10"), {})
     pm25 = next((l for l in latest if l.get("parameter_name") == "pm25"), {})
