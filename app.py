@@ -23,7 +23,11 @@ register_middlewares(app)
 with app.app_context():
     init_db()
     sync_lookup_tables()
-    sync_locations(country_code="PL")
+    location_ids = sync_locations(country_code="PL")
+    
+    for loc_id in location_ids:
+        sync_sensors(loc_id)
+        sync_location_latest(loc_id)
 
 app.register_blueprint(cities_bp, url_prefix="/api/v1/cities")
 app.register_blueprint(stations_bp, url_prefix="/api/v1/stations")
