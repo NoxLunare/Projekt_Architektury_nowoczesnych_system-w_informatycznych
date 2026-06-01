@@ -20,6 +20,8 @@ register_middlewares(app)
 
 with app.app_context():
     init_db()
+    sync_lookup_tables()
+    sync_locations(country_code="PL")
 
 app.register_blueprint(cities_bp, url_prefix="/api/v1/cities")
 app.register_blueprint(stations_bp, url_prefix="/api/v1/stations")
