@@ -13,6 +13,8 @@ from routes.measurements import measurements_bp
 from routes.air_quality import air_quality_bp
 from routes.recommendations import recommendations_bp
 
+from services.sync_service import sync_lookup_tables, sync_locations
+
 app = Flask(__name__)
 CORS(app)
 
