@@ -1,16 +1,16 @@
 import os
 import datetime
-
-from services.rate_limiter import rate_limited_get
+import requests
 
 OPENAQ_BASE = "https://api.openaq.org/v3"
-
+API_KEY = os.environ.get("OPENAQ_API_KEY", "")
 
 def _get(path: str, params: dict | None = None) -> dict:
     url = f"{OPENAQ_BASE}{path}"
     api_key = os.environ.get("OPENAQ_API_KEY", "")
     headers = {"X-API-Key": api_key} if api_key else {}
-    resp = rate_limited_get(url, params=params, headers=headers)
+    resp = requests.get(url, params=params, headers=headers, timeout=10)
+    resp.raise_for_status()
     return resp.json()
 
 def _get_results(path: str, params: dict | None = None) -> list:
@@ -48,7 +48,7 @@ def fetch_country_id(iso_code: str) -> int | None:
             return country["id"]
     return None
 
-def fetch_locations(country_code: str = "PL", limit: int = 1000, page: int = 1) -> list[dict]:
+def fetch_locations(country_code: str = "PL", limit: int = 100, page: int = 1) -> list[dict]:
     country_id = fetch_country_id(country_code)
     if not country_id:
         raise ValueError(f"Nie znaleziono kraju o kodzie ISO: {country_code}")

@@ -68,7 +68,8 @@ def recommendations():
         JOIN locations l ON l.id = ll.location_id
         JOIN parameters pa ON pa.id = ll.parameter_id
         WHERE LOWER(l.locality) LIKE ?
-    """, (f"%{city.lower()}%",)).fetchall()
+           OR LOWER(l.name) LIKE ?
+    """, (f"%{city.lower()}%", f"%{city.lower()}%")).fetchall()
 
     conn.close()
 

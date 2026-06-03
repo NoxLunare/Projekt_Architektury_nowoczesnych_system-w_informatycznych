@@ -75,9 +75,7 @@ function StationCard({ station, onSelectStation }) {
         </div>
       )}
 
-      <div className="station-card-footer">
-        <span className="station-card-link">Historia →</span>
-      </div>
+
     </div>
   );
 }

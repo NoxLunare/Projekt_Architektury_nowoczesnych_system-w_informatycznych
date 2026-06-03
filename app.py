@@ -12,7 +12,8 @@ from routes.stations import stations_bp
 from routes.measurements import measurements_bp
 from routes.air_quality import air_quality_bp
 from routes.recommendations import recommendations_bp
-from services.sync_service import sync_lookup_tables, sync_locations, sync_sensors, sync_location_latest
+
+from services.sync_service import sync_location_latest, sync_lookup_tables, sync_locations, sync_sensors
 
 app = Flask(__name__)
 CORS(app)
@@ -21,12 +22,16 @@ register_middlewares(app)
 
 with app.app_context():
     init_db()
-    sync_lookup_tables()
-    location_ids = sync_locations(country_code="PL", limit=100)
 
-    for loc_id in location_ids:
-        sync_sensors(loc_id)
-        sync_location_latest(loc_id)
+    # Krok 1: tabele słownikowe (owners, providers, parameters itp.)
+    sync_lookup_tables()
+
+    # Krok 2: lokalizacje — tylko metadane, bez sensorów i pomiarów
+    # Sensory i location_latest są pobierane lazily przy pierwszym
+    # wywołaniu endpointu z ?refresh=1 (lub automatycznie przez routes)
+    sync_locations(country_code="PL")
+
+    print(">>> Inicjalizacja zakończona. Sensory i pomiary będą pobierane on-demand.", flush=True)
 
 app.register_blueprint(cities_bp, url_prefix="/api/v1/cities")
 app.register_blueprint(stations_bp, url_prefix="/api/v1/stations")

@@ -1,29 +1,29 @@
 // src/components/Search.js
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 function Search({ stations = [], onSelectStation }) {
   const [query, setQuery] = useState("");
   const [filtered, setFiltered] = useState([]);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
+  // Trzymamy aktualną listę stacji w ref — bez wywoływania efektu przy każdej aktualizacji
+  const stationsRef = useRef(stations);
+  useEffect(() => { stationsRef.current = stations; }, [stations]);
 
-  // Filtruj po liście stacji już załadowanych do mapy
-  useEffect(() => {
-    const q = query.trim().toLowerCase();
-    console.log("[Search] query:", q, "stations.length:", stations.length);
-    if (q.length === 0) {
+  const runFilter = useCallback((q) => {
+    const query = q.trim().toLowerCase();
+    if (query.length === 0) {
       setFiltered([]);
       setOpen(false);
       return;
     }
-    if (stations.length > 0) console.log("[Search] przykładowa stacja:", JSON.stringify(stations[0]));
-    const matches = stations.filter((s) => {
+    const matches = stationsRef.current.filter((s) => {
       const locality = (s.locality || "").toLowerCase();
       const name = (s.name || "").toLowerCase();
       const street = (s.street || s.address || s.street_name || "").toLowerCase();
-      return locality.includes(q) || name.includes(q) || street.includes(q);
+      return locality.includes(query) || name.includes(query) || street.includes(query);
     });
-    // Deduplikuj po locality i posortuj
+    // Deduplikuj po locality
     const seen = new Set();
     const unique = matches.filter((s) => {
       const key = s.locality || s.name;
@@ -33,7 +33,13 @@ function Search({ stations = [], onSelectStation }) {
     });
     setFiltered(unique.slice(0, 10));
     setOpen(unique.length > 0);
-  }, [query, stations]);
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    runFilter(val);
+  };
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -48,7 +54,7 @@ function Search({ stations = [], onSelectStation }) {
   const handleSelect = (station) => {
     setQuery(station.locality || station.name);
     setOpen(false);
-    onSelectStation(station); // przekazujemy pełny obiekt stacji z koordynatami
+    onSelectStation(station);
   };
 
   return (
@@ -57,7 +63,7 @@ function Search({ stations = [], onSelectStation }) {
       <input
         type="text"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={handleChange}
         placeholder="Szukaj miasta lub stacji..."
         className="search-input"
       />

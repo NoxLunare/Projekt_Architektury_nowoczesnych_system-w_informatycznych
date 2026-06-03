@@ -1,6 +1,6 @@
 // src/components/Map.js
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchLatestMeasurements } from "../api/api";
 import { parseMeasurements, getFinalQuality, getQualityColor } from "../utils/airQuality";
 
@@ -23,6 +23,16 @@ function isActive(station) {
   return last >= twoYearsAgo;
 }
 
+async function runInBatches(items, batchSize, fn) {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 function FixMap() {
   const map = useMap();
   useEffect(() => {
@@ -31,7 +41,6 @@ function FixMap() {
   return null;
 }
 
-// Komponent który rejestruje funkcję flyTo w ref przekazanym z App
 function FlyToController({ flyToRef }) {
   const map = useMap();
   useEffect(() => {
@@ -113,44 +122,82 @@ function Legend() {
 function Map({ onSelectStation, onStationsLoaded, theme, flyToRef }) {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState("");
+  const stationsRef = useRef([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadStations() {
       try {
         const allStations = await fetchAllStations();
         const active = allStations.filter(
           (s) => s.latitude && s.longitude && isActive(s)
         );
-        const withMeasurements = await Promise.all(
-          active.map(async (station) => {
-            try {
-              const latest = await fetchLatestMeasurements(station.id);
-              const measurements = parseMeasurements(latest);
-              const quality = getFinalQuality(measurements);
-              return { ...station, measurements, quality, sensors: [] };
-            } catch {
-              return { ...station, measurements: {}, quality: "brak danych", sensors: [] };
+
+        const bare = active.map((s) => ({
+          ...s,
+          measurements: {},
+          quality: "brak danych",
+          sensors: [],
+        }));
+
+        if (!cancelled) {
+          stationsRef.current = bare;
+          setStations([...bare]);
+          // Przekazujemy listę stacji do App od razu — wyszukiwarka już działa
+          if (onStationsLoaded) onStationsLoaded([...bare]);
+          setLoading(false);
+          setLoadingProgress(`Ładowanie pomiarów… 0 / ${bare.length}`);
+        }
+
+        let done = 0;
+        await runInBatches(bare, 5, async (station) => {
+          if (cancelled) return;
+          try {
+            const latest = await fetchLatestMeasurements(station.id);
+            const measurements = parseMeasurements(latest);
+            const quality = getFinalQuality(measurements);
+
+            stationsRef.current = stationsRef.current.map((s) =>
+              s.id === station.id ? { ...s, measurements, quality } : s
+            );
+          } catch {
+            // zostaje "brak danych"
+          } finally {
+            done++;
+            if (!cancelled) {
+              setStations([...stationsRef.current]);
+              setLoadingProgress(`Ładowanie pomiarów… ${done} / ${bare.length}`);
+              if (done === bare.length) {
+                setLoadingProgress("");
+                // Ostateczna aktualizacja z pomiarami — aktualizujemy App tylko raz na koniec
+                if (onStationsLoaded) onStationsLoaded([...stationsRef.current]);
+              }
             }
-          })
-        );
-        setStations(withMeasurements);
-        if (onStationsLoaded) onStationsLoaded(withMeasurements);
+          }
+        });
       } catch (err) {
         console.error("Błąd ładowania stacji:", err);
-      } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
+
     loadStations();
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {loading && <div className="map-loading">Ładowanie stacji…</div>}
+      {!loading && loadingProgress && (
+        <div className="map-loading">{loadingProgress}</div>
+      )}
       <MapContainer center={[52, 19]} zoom={6} style={{ width: "100%", height: "100%" }}>
         <FixMap />
         <FlyToController flyToRef={flyToRef} />
         <TileLayer
+          key={theme}
           url={theme === "light"
             ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"}

@@ -4,6 +4,7 @@ import Map from "./components/Map";
 import Sidebar from "./components/Sidebar";
 import Search from "./components/Search";
 import StationGrid from "./components/StationGrid";
+import TopRankings from "./components/TopRankings";
 import "./App.css";
 
 function App() {
@@ -62,10 +63,18 @@ function App() {
         </div>
       </section>
 
-      {/* BOTTOM: karty wszystkich stacji */}
+      {/* BOTTOM: rankingi + karty wszystkich stacji */}
       <section className="stations-section">
-        <h2 className="section-title">Wszystkie stacje pomiarowe</h2>
-        <StationGrid stations={allStations} onSelectStation={handleSelectStation} />
+        <div className="stations-bottom-layout">
+          <div className="stations-grid-col">
+            <h2 className="section-title">Wszystkie stacje pomiarowe</h2>
+            <StationGrid stations={allStations} onSelectStation={handleSelectStation} />
+          </div>
+          <div className="stations-rankings-col">
+            <h2 className="section-title">Rankingi</h2>
+            <TopRankings stations={allStations} onSelectStation={handleSelectStation} />
+          </div>
+        </div>
       </section>
 
     </div>
