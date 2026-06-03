@@ -12,6 +12,7 @@ from routes.stations import stations_bp
 from routes.measurements import measurements_bp
 from routes.air_quality import air_quality_bp
 from routes.recommendations import recommendations_bp
+from services.sync_service import sync_lookup_tables, sync_locations, sync_sensors, sync_location_latest
 
 app = Flask(__name__)
 CORS(app)
@@ -21,7 +22,11 @@ register_middlewares(app)
 with app.app_context():
     init_db()
     sync_lookup_tables()
-    sync_locations(country_code="PL")
+    location_ids = sync_locations(country_code="PL", limit=100)
+
+    for loc_id in location_ids:
+        sync_sensors(loc_id)
+        sync_location_latest(loc_id)
 
 app.register_blueprint(cities_bp, url_prefix="/api/v1/cities")
 app.register_blueprint(stations_bp, url_prefix="/api/v1/stations")

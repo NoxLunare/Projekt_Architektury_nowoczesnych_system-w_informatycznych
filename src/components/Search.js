@@ -20,7 +20,8 @@ function Search({ stations = [], onSelectStation }) {
     const matches = stations.filter((s) => {
       const locality = (s.locality || "").toLowerCase();
       const name = (s.name || "").toLowerCase();
-      return locality.includes(q) || name.includes(q);
+      const street = (s.street || s.address || s.street_name || "").toLowerCase();
+      return locality.includes(q) || name.includes(q) || street.includes(q);
     });
     // Deduplikuj po locality i posortuj
     const seen = new Set();
@@ -72,6 +73,11 @@ function Search({ stations = [], onSelectStation }) {
               {station.locality && station.name !== station.locality && (
                 <span style={{ fontSize: 11, opacity: 0.6, marginLeft: 6 }}>
                   {station.name}
+                </span>
+              )}
+              {(station.street || station.address || station.street_name) && (
+                <span style={{ fontSize: 11, opacity: 0.5, marginLeft: 6 }}>
+                  ul. {station.street || station.address || station.street_name}
                 </span>
               )}
             </div>

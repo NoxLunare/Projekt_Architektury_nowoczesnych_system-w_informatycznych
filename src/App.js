@@ -14,9 +14,14 @@ function App() {
 
   const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
 
+  // Klik na mapie — tylko zaznacza, bez przybliżania
   const handleSelectStation = (station) => {
     setSelectedStation(station);
-    // Jeśli stacja ma współrzędne, centruj mapę
+  };
+
+  // Wybór z wyszukiwarki — zaznacza i przybliża mapę
+  const handleSelectFromSearch = (station) => {
+    setSelectedStation(station);
     if (station?.latitude && station?.longitude && flyToRef.current) {
       flyToRef.current(station.latitude, station.longitude);
     }
@@ -35,7 +40,7 @@ function App() {
           <span className="header-subtitle">Monitor jakości powietrza</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Search stations={allStations} onSelectStation={handleSelectStation} />
+          <Search stations={allStations} onSelectStation={handleSelectFromSearch} />
           <button className="theme-toggle" onClick={toggleTheme} title="Zmień motyw">
             {theme === "dark" ? "☀" : "☾"}
           </button>
